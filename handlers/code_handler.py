@@ -23,17 +23,13 @@ def get_user_language(context, user_id):
     if 'user_data' in context.chat_data and user_id in context.chat_data['user_data'] and 'language' in context.chat_data['user_data'][user_id]:
         return context.chat_data['user_data'][user_id]['language']
     
-    # Jeśli nie, pobierz z bazy danych
+    # Jeśli nie, pobierz z bazy danych (Supabase)
     try:
-        from database.supabase_client import sqlite3, DB_PATH
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        from database.supabase_client import supabase
         
-        cursor.execute("SELECT language FROM users WHERE id = ?", (user_id,))
-        result = cursor.fetchone()
-        conn.close()
+        response = supabase.table('users').select('language').eq('id', user_id).execute()
         
-        if result and result[0]:
+        if response.data and response.data[0].get('language'):
             # Zapisz w kontekście na przyszłość
             if 'user_data' not in context.chat_data:
                 context.chat_data['user_data'] = {}
@@ -41,35 +37,13 @@ def get_user_language(context, user_id):
             if user_id not in context.chat_data['user_data']:
                 context.chat_data['user_data'][user_id] = {}
             
-            context.chat_data['user_data'][user_id]['language'] = result[0]
-            return result[0]
+            context.chat_data['user_data'][user_id]['language'] = response.data[0]['language']
+            return response.data[0]['language']
     except Exception as e:
         print(f"Błąd pobierania języka z bazy: {e}")
     
-    # Sprawdź language_code, jeśli nie znaleziono language
-        try:
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            
-            cursor.execute("SELECT language_code FROM users WHERE id = ?", (user_id,))
-            result = cursor.fetchone()
-            conn.close()
-            
-            if result and result[0]:
-                # Zapisz w kontekście na przyszłość
-                if 'user_data' not in context.chat_data:
-                    context.chat_data['user_data'] = {}
-                
-                if user_id not in context.chat_data['user_data']:
-                    context.chat_data['user_data'][user_id] = {}
-                
-                context.chat_data['user_data'][user_id]['language'] = result[0]
-                return result[0]
-        except Exception as e:
-            print(f"Błąd pobierania language_code z bazy: {e}")
-        
-        # Domyślny język, jeśli wszystkie metody zawiodły
-        return "pl"
+    # Domyślny język, jeśli wszystkie metody zawiodły
+    return "pl"
 
 # Prosta tymczasowa implementacja funkcji activate_code
 def activate_code(user_id, code):

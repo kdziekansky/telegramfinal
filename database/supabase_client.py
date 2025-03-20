@@ -766,3 +766,86 @@ def use_activation_code(user_id, code):
     except Exception as e:
         logger.error(f"Błąd przy aktywacji kodu: {e}")
         return False, 0
+
+def get_credit_transactions(user_id, days=30):
+    """
+    Pobiera historię transakcji kredytowych użytkownika z określonej liczby dni
+    
+    Args:
+        user_id (int): ID użytkownika
+        days (int): Liczba dni wstecz
+        
+    Returns:
+        list: Lista transakcji
+    """
+    try:
+        start_date = (datetime.datetime.now(pytz.UTC) - datetime.timedelta(days=days)).isoformat()
+        
+        response = supabase.table('credit_transactions').select('*')\
+            .eq('user_id', user_id)\
+            .gte('created_at', start_date)\
+            .order('created_at', ascending=True).execute()
+            
+        return response.data
+    except Exception as e:
+        logger.error(f"Błąd przy pobieraniu transakcji kredytowych: {e}")
+        return []
+
+def get_credit_usage_by_type(user_id, days=30):
+    """
+    Pobiera sumaryczne zużycie kredytów według typu transakcji
+    
+    Args:
+        user_id (int): ID użytkownika
+        days (int): Liczba dni wstecz
+        
+    Returns:
+        dict: Słownik z sumami zużycia według typów
+    """
+    try:
+        transactions = get_credit_transactions(user_id, days)
+        
+        # Analiza transakcji po stronie klienta
+        usage_breakdown = {}
+        for trans in transactions:
+            if trans['transaction_type'] != 'deduct':
+                continue
+                
+            description = trans.get('description', 'Inne')
+            category = "Inne"
+            
+            if "Wiadomość" in description:
+                category = "Wiadomości"
+            elif "obraz" in description or "DALL-E" in description:
+                category = "Obrazy"
+            elif "dokument" in description:
+                category = "Analiza dokumentów"
+            elif "zdjęci" in description or "zdjęc" in description:
+                category = "Analiza zdjęć"
+            
+            if category not in usage_breakdown:
+                usage_breakdown[category] = 0
+            usage_breakdown[category] += trans['amount']
+            
+        return usage_breakdown
+    except Exception as e:
+        logger.error(f"Błąd przy analizie zużycia kredytów: {e}")
+        return {}
+
+def get_user_language(user_id):
+    """Pobiera język użytkownika"""
+    try:
+        response = supabase.table('users').select('language, language_code').eq('id', user_id).execute()
+        
+        if response.data:
+            user_data = response.data[0]
+            language = user_data.get('language')
+            
+            # Jeśli nie ma language, użyj language_code
+            if not language:
+                language = user_data.get('language_code')
+            
+            return language or "pl"
+    except Exception as e:
+        logger.error(f"Błąd przy pobieraniu języka użytkownika: {e}")
+        return "pl"

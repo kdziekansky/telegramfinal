@@ -37,9 +37,9 @@ def get_user_language(context, user_id):
     
     # If not, get from database
     try:
-        from database.supabase_client import sqlite3, DB_PATH
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        from database.supabase_client import supabase
+        response = supabase.table('users').select('language').eq('id', user_id).execute()
+        result = response.data[0]['language'] if response.data else None
         
         cursor.execute("SELECT language FROM users WHERE id = ?", (user_id,))
         result = cursor.fetchone()

@@ -40,39 +40,20 @@ def get_user_language(context, user_id):
     if 'user_data' in context.chat_data and user_id in context.chat_data['user_data'] and 'language' in context.chat_data['user_data'][user_id]:
         return context.chat_data['user_data'][user_id]['language']
     
-    # Jeśli nie, pobierz z bazy danych
+    # Jeśli nie, pobierz z bazy danych Supabase
     try:
-        from database.supabase_client import sqlite3, DB_PATH
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        from database.supabase_client import supabase
         
-        cursor.execute("SELECT language FROM users WHERE id = ?", (user_id,))
-        result = cursor.fetchone()
-        conn.close()
+        # Pobierz dane użytkownika
+        response = supabase.table('users').select('language, language_code').eq('id', user_id).execute()
         
-        if result and result[0]:
-            # Zapisz w kontekście na przyszłość
-            if 'user_data' not in context.chat_data:
-                context.chat_data['user_data'] = {}
+        if response.data:
+            user_data = response.data[0]
             
-            if user_id not in context.chat_data['user_data']:
-                context.chat_data['user_data'][user_id] = {}
-            
-            context.chat_data['user_data'][user_id]['language'] = result[0]
-            return result[0]
-    except Exception as e:
-        print(f"Błąd pobierania języka z bazy: {e}")
-    
-    # Sprawdź language_code, jeśli nie znaleziono language
-        try:
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            
-            cursor.execute("SELECT language_code FROM users WHERE id = ?", (user_id,))
-            result = cursor.fetchone()
-            conn.close()
-            
-            if result and result[0]:
+            # Najpierw sprawdź pole language
+            if user_data.get('language'):
+                language = user_data.get('language')
+                
                 # Zapisz w kontekście na przyszłość
                 if 'user_data' not in context.chat_data:
                     context.chat_data['user_data'] = {}
@@ -80,13 +61,27 @@ def get_user_language(context, user_id):
                 if user_id not in context.chat_data['user_data']:
                     context.chat_data['user_data'][user_id] = {}
                 
-                context.chat_data['user_data'][user_id]['language'] = result[0]
-                return result[0]
-        except Exception as e:
-            print(f"Błąd pobierania language_code z bazy: {e}")
-        
-        # Domyślny język, jeśli wszystkie metody zawiodły
-        return "pl"
+                context.chat_data['user_data'][user_id]['language'] = language
+                return language
+                
+            # Jeśli language nie znaleziono, sprawdź language_code
+            if user_data.get('language_code'):
+                language_code = user_data.get('language_code')
+                
+                # Zapisz w kontekście na przyszłość
+                if 'user_data' not in context.chat_data:
+                    context.chat_data['user_data'] = {}
+                
+                if user_id not in context.chat_data['user_data']:
+                    context.chat_data['user_data'][user_id] = {}
+                
+                context.chat_data['user_data'][user_id]['language'] = language_code
+                return language_code
+    except Exception as e:
+        print(f"Błąd pobierania języka z bazy: {e}")
+    
+    # Domyślny język, jeśli wszystkie metody zawiodły
+    return "pl"
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """

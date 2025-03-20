@@ -1,4 +1,6 @@
 from telegram import Update
+from utils.translations import get_text
+from handlers.menu_handler import get_user_language
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode, ChatAction
 from config import SUBSCRIPTION_EXPIRED_MESSAGE
@@ -6,7 +8,8 @@ from database.supabase_client import check_active_subscription
 from utils.openai_client import analyze_document, analyze_image
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Obsługa przesłanych dokumentów"""
+    user_id = update.effective_user.id
+    language = get_user_language(context, user_id)    """Obsługa przesłanych dokumentów"""
     user_id = update.effective_user.id
     
     # Sprawdź, czy użytkownik ma aktywną subskrypcję
@@ -19,11 +22,11 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Sprawdź rozmiar pliku (limit 25MB)
     if document.file_size > 25 * 1024 * 1024:
-        await update.message.reply_text("Plik jest zbyt duży. Maksymalny rozmiar to 25MB.")
+        await update.message.reply_text(get_text("file_too_large", language))
         return
     
     # Pobierz plik
-    message = await update.message.reply_text("Analizuję plik, proszę czekać...")
+    message = await update.message.reply_text(get_text("analyzing_file", language))
     
     # Wyślij informację o aktywności bota
     await update.message.chat.send_action(action=ChatAction.TYPING)
@@ -36,7 +39,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Wyślij analizę do użytkownika
     await message.edit_text(
-        f"*Analiza pliku:* {file_name}\n\n{analysis}",
+        f"*{get_text('file_analysis', language)}:* {file_name}\n\n{analysis}",
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -53,7 +56,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photo = update.message.photo[-1]
     
     # Pobierz zdjęcie
-    message = await update.message.reply_text("Analizuję zdjęcie, proszę czekać...")
+    message = await update.message.reply_text(get_text("analyzing_photo", language))
     
     # Wyślij informację o aktywności bota
     await update.message.chat.send_action(action=ChatAction.TYPING)
@@ -66,6 +69,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Wyślij analizę do użytkownika
     await message.edit_text(
-        f"*Analiza zdjęcia:*\n\n{analysis}",
+        f"*{get_text('photo_analysis', language)}:*\n\n{analysis}",
         parse_mode=ParseMode.MARKDOWN
     )

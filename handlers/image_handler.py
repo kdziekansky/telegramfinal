@@ -40,7 +40,7 @@ async def generate_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     image_url = await generate_image_dall_e(prompt)
     
     # Odejmij kredyty
-    deduct_user_credits(user_id, credit_cost, "Generowanie obrazu")
+    deduct_user_credits(user_id, credit_cost, get_text("image_generation", language, default="Generowanie obrazu"))
     
     if image_url:
         # Usuń wiadomość o ładowaniu

@@ -115,14 +115,14 @@ def generate_conversation_pdf(conversation, user_info, bot_name="AI Bot"):
     elements = []
     
     # Nagłówek
-    title = f"Konwersacja z {bot_name}"
+    title = f"{get_text('conversation_with', language, bot_name=bot_name)}"
     elements.append(Paragraph(title, styles['CustomTitle']))
     
     # Metadane
     current_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M")
-    metadata_text = f"Eksportowano: {current_time}"
+    metadata_text = f"{get_text('exported_at', language)}: {current_time}"
     if user_info.get('username'):
-        metadata_text += f"<br/>Użytkownik: {user_info.get('username')}"
+        metadata_text += f"<br/>{get_text('user', language)}: {user_info.get('username')}"
     elements.append(Paragraph(metadata_text, styles['CustomItalic']))
     elements.append(Spacer(1, 0.5*cm))
     
@@ -132,7 +132,7 @@ def generate_conversation_pdf(conversation, user_info, bot_name="AI Bot"):
             if msg['is_from_user']:
                 icon = "👤 "  # Ikona użytkownika
                 style = styles['UserMessage']
-                content = f"{icon}Ty: {clean_markdown(msg['content'])}"
+                content = f"{icon}{get_text('you', language)}: {clean_markdown(msg['content'])}"
             else:
                 icon = "🤖 "  # Ikona bota
                 style = styles['BotMessage']
@@ -156,7 +156,7 @@ def generate_conversation_pdf(conversation, user_info, bot_name="AI Bot"):
     
     # Stopka
     elements.append(Spacer(1, 1*cm))
-    footer_text = f"Wygenerowano przez {bot_name} • {current_time}"
+    footer_text = f"{get_text('generated_by', language)} {bot_name} • {current_time}"
     elements.append(Paragraph(footer_text, styles['CustomItalic']))
     
     # Wygeneruj dokument

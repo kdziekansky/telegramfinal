@@ -308,7 +308,7 @@ async def handle_credit_callback(update: Update, context: ContextTypes.DEFAULT_T
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await query.edit_message_text(
-            get_text("stars_purchase_info", language, default="🌟 *Zakup kredytów za Telegram Stars* 🌟\n\nWybierz jedną z opcji poniżej, aby wymienić gwiazdki Telegram na kredyty.\nIm więcej gwiazdek wymienisz jednorazowo, tym lepszy bonus otrzymasz!\n\n⚠️ *Uwaga:* Aby dokonać zakupu gwiazdkami, wymagane jest konto Telegram Premium."),
+            get_text("stars_purchase_info", language),
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=reply_markup
         )

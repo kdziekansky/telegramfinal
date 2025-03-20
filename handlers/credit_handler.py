@@ -39,13 +39,8 @@ def get_user_language(context, user_id):
     try:
         from database.supabase_client import supabase
         response = supabase.table('users').select('language').eq('id', user_id).execute()
-        result = response.data[0]['language'] if response.data else None
         
-        cursor.execute("SELECT language FROM users WHERE id = ?", (user_id,))
-        result = cursor.fetchone()
-        conn.close()
-        
-        if result and result[0]:
+        if response.data and response.data[0].get('language'):
             # Save in context for future use
             if 'user_data' not in context.chat_data:
                 context.chat_data['user_data'] = {}
@@ -53,8 +48,8 @@ def get_user_language(context, user_id):
             if user_id not in context.chat_data['user_data']:
                 context.chat_data['user_data'][user_id] = {}
             
-            context.chat_data['user_data'][user_id]['language'] = result[0]
-            return result[0]
+            context.chat_data['user_data'][user_id]['language'] = response.data[0]['language']
+            return response.data[0]['language']
     except Exception as e:
         print(f"Error getting language from database: {e}")
     

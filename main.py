@@ -1701,9 +1701,6 @@ def main():
     application.run_polling()
 
 if __name__ == '__main__':
-    # Aktualizacja bazy danych przed uruchomieniem
-    from update_database import run_all_updates
-    run_all_updates()
     
     # Uruchomienie bota
     main()

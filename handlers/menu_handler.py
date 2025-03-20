@@ -1005,19 +1005,14 @@ async def set_user_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
         new_name = new_name[:47] + "..."
     
     try:
-        # Zaktualizuj nazwę użytkownika w bazie danych
-        from database.supabase_client import sqlite3, DB_PATH
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        # Aktualizuj nazwę użytkownika w bazie danych Supabase
+        from database.supabase_client import supabase
         
-        cursor.execute(
-            "UPDATE users SET first_name = ? WHERE id = ?", 
-            (new_name, user_id)
-        )
-        conn.commit()
-        conn.close()
+        response = supabase.table('users').update(
+            {"first_name": new_name}
+        ).eq('id', user_id).execute()
         
-        # Zaktualizuj nazwę w kontekście, jeśli istnieje
+        # Aktualizuj nazwę w kontekście, jeśli istnieje
         if 'user_data' not in context.chat_data:
             context.chat_data['user_data'] = {}
         

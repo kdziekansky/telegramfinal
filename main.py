@@ -18,6 +18,11 @@ from config import (
     AVAILABLE_LANGUAGES, ADMIN_USER_IDS
 )
 
+from handlers.payment_handler import (
+    payment_command, subscription_command, handle_payment_callback,
+    transactions_command
+)
+
 # Import funkcji z modułu tłumaczeń
 from utils.translations import get_text
 
@@ -812,8 +817,24 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
     
-    # Zawsze odpowiadaj na callback, aby usunąć oczekiwanie
+    # Najpierw odpowiedz, aby usunąć oczekiwanie
     await query.answer()
+    
+    # Obsługa callbacków płatności
+    try:
+        payment_handled = await handle_payment_callback(update, context)
+        if payment_handled:
+            return
+    except Exception as e:
+        print(f"Błąd w obsłudze callbacków płatności: {e}")
+    
+    # Obsługa callbacków kredytów
+    try:
+        credit_handled = await handle_credit_callback(update, context)
+        if credit_handled:
+            return
+    except Exception as e:
+        print(f"Błąd w obsłudze callbacków kredytów: {e}")
     
     # Obsługa przycisków onboardingu
     if query.data.startswith("onboarding_"):
@@ -1223,12 +1244,6 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 )
             return
 
-    # Obsługa kredytów
-    if query.data.startswith("buy_") or query.data.startswith("credits_"):
-        from handlers.credit_handler import handle_credit_callback
-        await handle_credit_callback(update, context)
-        return
-    
     # Obsługa historii
     if query.data.startswith("history_"):
         if query.data == "history_new":
@@ -1477,230 +1492,3 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             )
     except:
         pass
-
-async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, model_id):
-    """Obsługa wyboru modelu AI"""
-    query = update.callback_query
-    user_id = query.from_user.id
-    language = get_user_language(context, user_id)
-    
-    # Sprawdź, czy model istnieje
-    if model_id not in AVAILABLE_MODELS:
-        # Sprawdź typ wiadomości i użyj odpowiedniej metody
-        if hasattr(query.message, 'caption'):
-            await query.edit_message_caption(
-                caption=get_text("model_not_available", language),
-                parse_mode=ParseMode.MARKDOWN
-            )
-        else:
-            await query.edit_message_text(
-                text=get_text("model_not_available", language),
-                parse_mode=ParseMode.MARKDOWN
-            )
-        return
-    
-    # Zapisz wybrany model w kontekście użytkownika
-    if 'user_data' not in context.chat_data:
-        context.chat_data['user_data'] = {}
-    
-    if user_id not in context.chat_data['user_data']:
-        context.chat_data['user_data'][user_id] = {}
-    
-    context.chat_data['user_data'][user_id]['current_model'] = model_id
-    
-    # Pobierz koszt kredytów dla wybranego modelu
-    credit_cost = CREDIT_COSTS["message"].get(model_id, CREDIT_COSTS["message"]["default"])
-    
-    model_name = AVAILABLE_MODELS[model_id]
-    
-    message_text = get_text("model_selected", language, model=model_name, credits=credit_cost)
-    
-    # Sprawdź typ wiadomości i użyj odpowiedniej metody
-    if hasattr(query.message, 'caption'):
-        await query.edit_message_caption(
-            caption=message_text,
-            parse_mode=ParseMode.MARKDOWN
-        )
-    else:
-        await query.edit_message_text(
-            text=message_text,
-            parse_mode=ParseMode.MARKDOWN
-        )
-
-# Handlers dla komend administracyjnych
-
-async def add_credits_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Dodaje kredyty użytkownikowi (tylko dla administratorów)
-    Użycie: /addcredits [user_id] [ilość]
-    """
-    user_id = update.effective_user.id
-    
-    # Sprawdź, czy użytkownik jest administratorem
-    if user_id not in ADMIN_USER_IDS:
-        await update.message.reply_text("Nie masz uprawnień do tej komendy.")
-        return
-    
-    # Sprawdź, czy podano argumenty
-    if not context.args or len(context.args) < 2:
-        await update.message.reply_text("Użycie: /addcredits [user_id] [ilość]")
-        return
-    
-    try:
-        target_user_id = int(context.args[0])
-        amount = int(context.args[1])
-    except ValueError:
-        await update.message.reply_text("Błędne argumenty. Użycie: /addcredits [user_id] [ilość]")
-        return
-    
-    # Sprawdź, czy ilość jest poprawna
-    if amount <= 0 or amount > 10000:
-        await update.message.reply_text("Ilość musi być liczbą dodatnią, nie większą niż 10000.")
-        return
-    
-    # Dodaj kredyty
-    success = add_user_credits(target_user_id, amount, "Dodano przez administratora")
-    
-    if success:
-        # Pobierz aktualny stan kredytów
-        credits = get_user_credits(target_user_id)
-        await update.message.reply_text(
-            f"Dodano *{amount}* kredytów użytkownikowi ID: *{target_user_id}*\n"
-            f"Aktualny stan kredytów: *{credits}*",
-            parse_mode=ParseMode.MARKDOWN
-        )
-    else:
-        await update.message.reply_text("Wystąpił błąd podczas dodawania kredytów.")
-
-async def get_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Pobiera informacje o użytkowniku (tylko dla administratorów)
-    Użycie: /userinfo [user_id]
-    """
-    user_id = update.effective_user.id
-    
-    # Sprawdź, czy użytkownik jest administratorem
-    if user_id not in ADMIN_USER_IDS:
-        await update.message.reply_text("Nie masz uprawnień do tej komendy.")
-        return
-    
-    # Sprawdź, czy podano ID użytkownika
-    if not context.args or len(context.args) < 1:
-        await update.message.reply_text("Użycie: /userinfo [user_id]")
-        return
-    
-    try:
-        target_user_id = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("ID użytkownika musi być liczbą.")
-        return
-    
-    # Pobierz informacje o użytkowniku
-    user = get_or_create_user(target_user_id)
-    credits = get_user_credits(target_user_id)
-    
-    if not user:
-        await update.message.reply_text("Użytkownik nie istnieje w bazie danych.")
-        return
-    
-    # Formatuj dane
-    subscription_end = user.get('subscription_end_date', 'Brak subskrypcji')
-    if subscription_end and subscription_end != 'Brak subskrypcji':
-        end_date = datetime.datetime.fromisoformat(subscription_end.replace('Z', '+00:00'))
-        subscription_end = end_date.strftime('%d.%m.%Y %H:%M')
-    
-    info = f"""
-*Informacje o użytkowniku:*
-ID: `{user['id']}`
-Nazwa użytkownika: {user.get('username', 'Brak')}
-Imię: {user.get('first_name', 'Brak')}
-Nazwisko: {user.get('last_name', 'Brak')}
-Język: {user.get('language_code', 'Brak')}
-Język interfejsu: {user.get('language', 'pl')}
-Subskrypcja do: {subscription_end}
-Aktywny: {'Tak' if user.get('is_active', False) else 'Nie'}
-Data rejestracji: {user.get('created_at', 'Brak')}
-
-*Status kredytów:*
-Dostępne kredyty: *{credits}*
-"""
-    
-    await update.message.reply_text(info, parse_mode=ParseMode.MARKDOWN)
-
-# Główna funkcja uruchamiająca bota
-
-def main():
-    """Funkcja uruchamiająca bota"""
-    # Inicjalizacja aplikacji
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
-    
-    # Handler dla help
-    application.add_handler(CommandHandler("help", help_command))
-
-    # Handler dla setname
-    application.add_handler(CommandHandler("setname", set_user_name))
-
-    # Podstawowe komendy - USUNIĘTY handler removekeyboard
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("status", check_status))
-    application.add_handler(CommandHandler("newchat", new_chat))
-    application.add_handler(CommandHandler("models", show_models))
-    application.add_handler(CommandHandler("mode", show_modes))
-    application.add_handler(CommandHandler("image", generate_image))
-    application.add_handler(CommandHandler("restart", restart_command))
-    application.add_handler(CommandHandler("setname", set_user_name))
-    application.add_handler(CommandHandler("language", language_command))
-
-    # Handler dla help
-    application.add_handler(CommandHandler("help", help_command))
-    
-    # Handler dla translate
-    application.add_handler(CommandHandler("translate", translate_command))
-    
-    # Handler dla /status
-    application.add_handler(CommandHandler("status", check_status))
-
-    # Handler dla komendy /translate
-    application.add_handler(CommandHandler("translate", translate_command))
-    
-    # Dodanie komendy onboarding
-    application.add_handler(CommandHandler("onboarding", onboarding_command))
-    
-    # Handlery kodów aktywacyjnych
-    application.add_handler(CommandHandler("code", code_command))
-    application.add_handler(CommandHandler("gencode", admin_generate_code))
-    
-    # Handlery kredytów
-    application.add_handler(CommandHandler("credits", credits_command))
-    application.add_handler(CommandHandler("buy", buy_command))
-    application.add_handler(CommandHandler("creditstats", credit_stats_command))
-    application.add_handler(CommandHandler("creditanalysis", credit_analytics_command))
-    
-    # Komendy administracyjne
-    application.add_handler(CommandHandler("addcredits", add_credits_admin))
-    application.add_handler(CommandHandler("userinfo", get_user_info))
-    
-    # Handler eksportu
-    application.add_handler(CommandHandler("export", export_conversation))
-    
-    # Handlery tematów konwersacji
-    application.add_handler(CommandHandler("theme", theme_command))
-    application.add_handler(CommandHandler("notheme", notheme_command))
-    
-    # WAŻNE: Handler callbacków (musi być przed handlerami mediów i tekstu)
-    application.add_handler(CallbackQueryHandler(handle_callback_query))
-    
-    # Handlery mediów (dokumenty, zdjęcia)
-    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
-    
-    # Handler wiadomości tekstowych (zawsze na końcu)
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
-    
-    # Uruchomienie bota
-    application.run_polling()
-
-if __name__ == '__main__':
-    
-    # Uruchomienie bota
-    main()

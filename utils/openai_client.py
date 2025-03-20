@@ -3,6 +3,7 @@ from openai import AsyncOpenAI
 import base64
 import os
 import asyncio
+from utils.translations import get_text
 from config import OPENAI_API_KEY, DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT, DALL_E_MODEL
 print(f"API Key is {'set' if OPENAI_API_KEY else 'NOT SET'}")
 print(f"API Key length: {len(OPENAI_API_KEY) if OPENAI_API_KEY else 0}")
@@ -66,7 +67,7 @@ async def chat_completion(messages, model=DEFAULT_MODEL):
         return response.choices[0].message.content
     except Exception as e:
         print(f"Błąd API OpenAI: {e}")
-        return f"Przepraszam, wystąpił błąd podczas generowania odpowiedzi: {str(e)}"
+        return get_text("openai_response_error", language, error=str(e))
 
 def prepare_messages_from_history(history, user_message, system_prompt=None):
     """

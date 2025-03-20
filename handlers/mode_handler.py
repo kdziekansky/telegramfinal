@@ -42,6 +42,7 @@ async def show_modes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# Poprawiona funkcja handle_mode_selection
 async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, mode_id):
     """Obsługa wyboru trybu czatu"""
     query = update.callback_query
@@ -53,6 +54,8 @@ async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TY
     # Sprawdź, czy tryb istnieje
     if mode_id not in CHAT_MODES:
         try:
+            await query.answer(get_text("mode_not_available", language, default="Wybrany tryb nie jest dostępny."))
+            
             if hasattr(query.message, 'caption'):
                 await query.edit_message_caption(
                     caption=get_text("mode_not_available", language, default="Wybrany tryb nie jest dostępny."),

@@ -446,15 +446,17 @@ async def handle_back_to_main(update, context):
             print(f"Plan awaryjny nie powiódł się: {e2}")
             return False
 
-async def handle_model_selection(update, context):
+async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obsługuje wybór modelu AI"""
     query = update.callback_query
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
     
+    print(f"Obsługa wyboru modelu dla użytkownika {user_id}")
+    
     reply_markup = create_model_selection_markup(language)
     result = await update_message(
-        query,
+        query, 
         get_text("settings_choose_model", language),
         reply_markup,
         parse_mode=ParseMode.MARKDOWN
@@ -462,11 +464,13 @@ async def handle_model_selection(update, context):
     
     return result
 
-async def handle_language_selection(update, context):
+async def handle_language_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obsługuje wybór języka"""
     query = update.callback_query
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
+    
+    print(f"Obsługa wyboru języka dla użytkownika {user_id}")
     
     reply_markup = create_language_selection_markup(language)
     result = await update_message(
@@ -478,11 +482,13 @@ async def handle_language_selection(update, context):
     
     return result
 
-async def handle_name_settings(update, context):
+async def handle_name_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obsługuje ustawienia nazwy użytkownika"""
     query = update.callback_query
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
+    
+    print(f"Obsługa ustawień nazwy dla użytkownika {user_id}")
     
     message_text = get_text("settings_change_name", language, default="Aby zmienić swoją nazwę, użyj komendy /setname [twoja_nazwa].\n\nNa przykład: /setname Jan Kowalski")
     keyboard = [[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_settings")]]

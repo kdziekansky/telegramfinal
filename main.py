@@ -108,6 +108,60 @@ HTTPXRequest._build_client = patched_build_client
 # Inicjalizacja aplikacji
 application = Application.builder().token(TELEGRAM_TOKEN).build()
 
+async def handle_callback_error(query, error_message, full_error=None):
+    """
+    Obsługuje błędy podczas przetwarzania callbacków
+    
+    Args:
+        query: Obiekt callback_query
+        error_message: Krótka wiadomość o błędzie dla użytkownika
+        full_error: Pełny tekst błędu do zalogowania (opcjonalnie)
+    """
+    if full_error:
+        print(f"Błąd podczas obsługi callbacku: {full_error}")
+        import traceback
+        traceback.print_exc()
+    
+    # Powiadom użytkownika o błędzie przez notyfikację
+    try:
+        await query.answer(error_message)
+    except Exception:
+        pass
+    
+    # Spróbuj zaktualizować wiadomość z informacją o błędzie
+    try:
+        if hasattr(query.message, 'caption'):
+            await query.edit_message_caption(
+                caption=f"⚠️ {error_message}\n\nSpróbuj ponownie później.",
+                reply_markup=None
+            )
+        else:
+            await query.edit_message_text(
+                text=f"⚠️ {error_message}\n\nSpróbuj ponownie później.",
+                reply_markup=None
+            )
+    except Exception:
+        # Jeśli nie udało się zaktualizować wiadomości, nie rób nic
+        pass
+
+# Teraz, w funkcji handle_callback_query, zamień wszystkie bloki try-except 
+# na używające tej nowej funkcji pomocniczej. Na przykład:
+
+    # Przykład użycia w obsłudze trybów:
+    if query.data.startswith("mode_"):
+        try:
+            mode_id = query.data[5:]
+            from handlers.mode_handler import handle_mode_selection
+            await handle_mode_selection(update, context, mode_id)
+            return True
+        except Exception as e:
+            await handle_callback_error(
+                query,
+                "Wystąpił błąd podczas wyboru trybu czatu.",
+                full_error=str(e)
+            )
+            return True
+
 async def update_message(query, caption_or_text, reply_markup, parse_mode=None):
     """
     Aktualizuje wiadomość, obsługując różne typy wiadomości i błędy
@@ -993,33 +1047,133 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     
     # Obsługa wyboru modelu
     if query.data.startswith("model_"):
-        print(f"Wykryto wybór modelu: {query.data}")
-        model_id = query.data[6:]  # Usuń prefix "model_"
-        
-        # Zapisz wybrany model w kontekście użytkownika
-        if 'user_data' not in context.chat_data:
-            context.chat_data['user_data'] = {}
-        if user_id not in context.chat_data['user_data']:
-            context.chat_data['user_data'][user_id] = {}
-        
-        context.chat_data['user_data'][user_id]['current_model'] = model_id
-        
-        # Przygotuj komunikat potwierdzający
-        model_name = AVAILABLE_MODELS.get(model_id, get_text("unknown_model", language, default="Nieznany model"))
-        credit_cost = CREDIT_COSTS["message"].get(model_id, CREDIT_COSTS["message"]["default"])
-        
-        message = get_text("model_selected", language, model=model_name, credits=credit_cost)
-        
-        # Poinformuj użytkownika
         try:
-            await query.edit_message_text(
-                text=message,
-                parse_mode=ParseMode.MARKDOWN
-            )
+            print(f"Wykryto wybór modelu: {query.data}")
+            model_id = query.data[6:]  # Usuń prefiks "model_"
+            
+            user_id = query.from_user.id
+            language = get_user_language(context, user_id)
+            
+            # Zapisz wybrany model w kontekście użytkownika
+            if 'user_data' not in context.chat_data:
+                context.chat_data['user_data'] = {}
+            if user_id not in context.chat_data['user_data']:
+                context.chat_data['user_data'][user_id] = {}
+            
+            context.chat_data['user_data'][user_id]['current_model'] = model_id
+            
+            # Przygotuj komunikat potwierdzający
+            model_name = AVAILABLE_MODELS.get(model_id, get_text("unknown_model", language, default="Nieznany model"))
+            credit_cost = CREDIT_COSTS["message"].get(model_id, CREDIT_COSTS["message"]["default"])
+            
+            message = get_text("model_selected", language, model=model_name, credits=credit_cost)
+            
+            # Przyciski powrotu do ustawień
+            keyboard = [
+                [InlineKeyboardButton(get_text("back", language), callback_data="menu_section_settings")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            # Poinformuj użytkownika
+            try:
+                if hasattr(query.message, 'caption'):
+                    await query.edit_message_caption(
+                        caption=message,
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=reply_markup
+                    )
+                else:
+                    await query.edit_message_text(
+                        text=message,
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=reply_markup
+                    )
+            except Exception as e:
+                print(f"Błąd aktualizacji wiadomości: {e}")
+                # Próba bez formatowania
+                try:
+                    if hasattr(query.message, 'caption'):
+                        await query.edit_message_caption(
+                            caption=message.replace("*", ""),
+                            reply_markup=reply_markup
+                        )
+                    else:
+                        await query.edit_message_text(
+                            text=message.replace("*", ""),
+                            reply_markup=reply_markup
+                        )
+                except Exception as e2:
+                    print(f"Drugi błąd aktualizacji wiadomości: {e2}")
+            
+            return True
         except Exception as e:
-            print(f"Błąd aktualizacji wiadomości: {e}")
+            print(f"Błąd przy obsłudze wyboru modelu: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Powiadom użytkownika o błędzie
+            await query.answer("Wystąpił błąd podczas wyboru modelu.")
+            return True
+
+    # Obsługa wyboru trybu czatu
+    if query.data.startswith("mode_"):
+        try:
+            # Pobierz ID trybu
+            mode_id = query.data[5:]  # Usuń prefiks 'mode_'
+            
+            # Importuj moduł obsługi trybów
+            from handlers.mode_handler import handle_mode_selection
+            
+            # Wywołaj funkcję obsługi
+            await handle_mode_selection(update, context, mode_id)
+            return True
+        except Exception as e:
+            print(f"Błąd przy obsłudze wyboru trybu: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Powiadom użytkownika o błędzie
+            await query.answer("Wystąpił błąd podczas wyboru trybu czatu.")
+            return True
         
-        return True
+    # Obsługa opcji ustawień
+    if query.data.startswith("settings_"):
+        try:
+            user_id = query.from_user.id
+            language = get_user_language(context, user_id)
+            
+            # Określ typ ustawień
+            settings_type = query.data[9:]  # Usuń prefiks 'settings_'
+            
+            print(f"Obsługa ustawień typu: {settings_type}")
+            
+            if settings_type == "model":
+                # Import funkcji obsługi modelu
+                from handlers.menu_handler import handle_model_selection
+                await handle_model_selection(update, context)
+                return True
+            elif settings_type == "language":
+                # Import funkcji obsługi języka
+                from handlers.menu_handler import handle_language_selection
+                await handle_language_selection(update, context)
+                return True
+            elif settings_type == "name":
+                # Import funkcji obsługi nazwy
+                from handlers.menu_handler import handle_name_settings
+                await handle_name_settings(update, context)
+                return True
+            else:
+                print(f"Nieznany typ ustawień: {settings_type}")
+                await query.answer(f"Nieznana opcja ustawień.")
+                return True
+        except Exception as e:
+            print(f"Błąd przy obsłudze ustawień: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Powiadom użytkownika o błędzie
+            await query.answer("Wystąpił błąd podczas zmiany ustawień.")
+            return True
 
     # Obsługa tematów konwersacji
     if query.data.startswith("theme_") or query.data == "new_theme" or query.data == "no_theme":
@@ -1035,90 +1189,98 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         # Dodaj log
         print(f"Obsługa history_view dla użytkownika {user_id}")
         
-        # Pobierz aktywną konwersację
-        from database.supabase_client import get_active_conversation, get_conversation_history
-        conversation = get_active_conversation(user_id)
-        
-        if not conversation:
-            # Informacja przez notyfikację
-            await query.answer(get_text("history_no_conversation", language))
+        try:
+            # Pobierz aktywną konwersację
+            from database.supabase_client import get_active_conversation, get_conversation_history
+            conversation = get_active_conversation(user_id)
             
-            # Wyświetl komunikat również w wiadomości
-            message_text = get_text("history_no_conversation", language)
+            if not conversation:
+                # Informacja przez notyfikację
+                await query.answer(get_text("history_no_conversation", language))
+                
+                # Wyświetl komunikat również w wiadomości
+                message_text = get_text("history_no_conversation", language)
+                keyboard = [[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                result = await update_message(
+                    query,
+                    message_text,
+                    reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                print(f"Wynik update_message dla braku konwersacji: {result}")
+                return True
+            
+            # Pobierz historię konwersacji - tylko gdy konwersacja istnieje
+            history = get_conversation_history(conversation['id'])
+            
+            if not history:
+                # Informacja przez notyfikację
+                await query.answer(get_text("history_empty", language))
+                
+                # Wyświetl komunikat również w wiadomości
+                message_text = get_text("history_empty", language)
+                keyboard = [[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                result = await update_message(
+                    query,
+                    message_text,
+                    reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                print(f"Wynik update_message dla pustej historii: {result}")
+                return True
+            
+            # Przygotuj tekst z historią
+            message_text = f"*{get_text('history_title', language)}*\n\n"
+            
+            for i, msg in enumerate(history[-10:]):  # Ostatnie 10 wiadomości
+                sender = get_text("history_user", language) if msg['is_from_user'] else get_text("history_bot", language)
+                
+                # Skróć treść wiadomości, jeśli jest zbyt długa
+                content = msg.get('content', '')
+                if len(content) > 100:
+                    content = content[:97] + "..."
+                    
+                # Unikaj formatowania Markdown w treści wiadomości, które mogłoby powodować problemy
+                content = content.replace("*", "").replace("_", "").replace("`", "").replace("[", "").replace("]", "")
+                
+                message_text += f"{i+1}. **{sender}**: {content}\n\n"
+            
+            # Dodaj przycisk do powrotu
             keyboard = [[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            result = await update_message(
-                query,
-                message_text,
-                reply_markup,
-                parse_mode=ParseMode.MARKDOWN
-            )
-            print(f"Wynik update_message dla braku konwersacji: {result}")
-            return True
-    
-    # Pobierz historię konwersacji
-    history = get_conversation_history(conversation['id'])
-    
-    if not history:
-        # Informacja przez notyfikację
-        await query.answer(get_text("history_empty", language))
-        
-        # Wyświetl komunikat również w wiadomości
-        message_text = get_text("history_empty", language)
-        keyboard = [[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        result = await update_message(
-            query,
-            message_text,
-            reply_markup,
-            parse_mode=ParseMode.MARKDOWN
-        )
-        print(f"Wynik update_message dla pustej historii: {result}")
-        return True
-    
-    # Przygotuj tekst z historią
-    message_text = f"*{get_text('history_title', language)}*\n\n"
-    
-    for i, msg in enumerate(history[-10:]):  # Ostatnie 10 wiadomości
-        sender = get_text("history_user", language) if msg['is_from_user'] else get_text("history_bot", language)
-        
-        # Skróć treść wiadomości, jeśli jest zbyt długa
-        content = msg['content']
-        if len(content) > 100:
-            content = content[:97] + "..."
+            # Spróbuj wysłać z formatowaniem, a jeśli się nie powiedzie, wyślij bez
+            try:
+                result = await update_message(
+                    query,
+                    message_text,
+                    reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                print(f"Wynik update_message z historią: {result}")
+            except Exception as e:
+                print(f"Błąd formatowania historii: {e}")
+                # Spróbuj bez formatowania
+                plain_message = message_text.replace("*", "").replace("**", "")
+                result = await update_message(
+                    query,
+                    plain_message,
+                    reply_markup
+                )
+                print(f"Wynik update_message bez formatowania: {result}")
             
-        # Unikaj formatowania Markdown w treści wiadomości, które mogłoby powodować problemy
-        content = content.replace("*", "").replace("_", "").replace("`", "").replace("[", "").replace("]", "")
-        
-        message_text += f"{i+1}. **{sender}**: {content}\n\n"
-    
-    # Dodaj przycisk do powrotu
-    keyboard = [[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    # Spróbuj wysłać z formatowaniem, a jeśli się nie powiedzie, wyślij bez
-    try:
-        result = await update_message(
-            query,
-            message_text,
-            reply_markup,
-            parse_mode=ParseMode.MARKDOWN
-        )
-        print(f"Wynik update_message z historią: {result}")
-    except Exception as e:
-        print(f"Błąd formatowania historii: {e}")
-        # Spróbuj bez formatowania
-        plain_message = message_text.replace("*", "").replace("**", "")
-        result = await update_message(
-            query,
-            plain_message,
-            reply_markup
-        )
-        print(f"Wynik update_message bez formatowania: {result}")
-    
-    return True
+            return True
+        except Exception as e:
+            print(f"Błąd w obsłudze history_view: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            await query.answer("Wystąpił błąd podczas ładowania historii.")
+            return True
     
     # POPRAWKA: Bezpośrednia obsługa menu_credits_check
     if query.data == "menu_credits_check" or query.data == "credits_check":

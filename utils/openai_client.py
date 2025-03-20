@@ -7,8 +7,12 @@ from config import OPENAI_API_KEY, DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT, DALL_E_
 print(f"API Key is {'set' if OPENAI_API_KEY else 'NOT SET'}")
 print(f"API Key length: {len(OPENAI_API_KEY) if OPENAI_API_KEY else 0}")
 
-# Inicjalizacja klienta OpenAI
-client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+from httpx import AsyncClient
+http_client = AsyncClient()
+client = AsyncOpenAI(api_key=OPENAI_API_KEY, http_client=http_client)
+
+import os
+os.environ["HTTPX_SKIP_PROXY"] = "true"  # Wyłącza proxy dla httpx
 
 async def chat_completion_stream(messages, model=DEFAULT_MODEL):
     """

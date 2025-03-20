@@ -1,8 +1,11 @@
 import logging
+logging.basicConfig(level=logging.DEBUG)
 import os
 import re
 import datetime
 import pytz
+from telegram.ext import Application
+from config import TELEGRAM_TOKEN
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram import ReplyKeyboardRemove
 from handlers.help_handler import help_command, check_status
@@ -76,12 +79,17 @@ from handlers.export_handler import export_conversation
 from handlers.theme_handler import theme_command, notheme_command, handle_theme_callback
 from utils.credit_analytics import generate_credit_usage_chart, generate_usage_breakdown_chart
 
+import os
+os.environ["HTTPX_SKIP_PROXY"] = "true"  # Wyłącza proxy dla httpx
+
 # Konfiguracja loggera
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+application = Application.builder().token(TELEGRAM_TOKEN).build()
 
 # Funkcje onboardingu
 async def onboarding_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1492,3 +1500,13 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             )
     except:
         pass
+        
+if __name__ == "__main__":
+    print("Uruchamiam bota...")
+    try:
+        print("Rozpoczynam nasłuchiwanie wiadomości...")
+        application.run_polling(drop_pending_updates=True)
+    except Exception as e:
+        print(f"Błąd podczas uruchamiania bota: {e}")
+        import traceback
+        traceback.print_exc()

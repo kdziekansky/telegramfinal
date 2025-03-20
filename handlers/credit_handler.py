@@ -450,11 +450,12 @@ async def credit_analytics_command(update: Update, context: ContextTypes.DEFAULT
     # Get credit usage breakdown
     usage_breakdown = get_credit_usage_breakdown(user_id, days)
     
-    if usage_breakdown:
-        message += f"*{get_text('usage_breakdown', language, default='Rozkład zużycia kredytów')}:*\n"
+    if usage_breakdown and sum(usage_breakdown.values()) > 0:
         for category, amount in usage_breakdown.items():
             percentage = amount / sum(usage_breakdown.values()) * 100
             message += f"- {category}: *{amount}* {get_text('credits', language)} ({percentage:.1f}%)\n"
+    else:
+        message += f"- {get_text('no_data', language, default='Brak dostępnych danych o użyciu.')}\n"
     
     # Send analysis message
     await status_message.edit_text(

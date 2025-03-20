@@ -578,7 +578,7 @@ def save_message(conversation_id, user_id, content, is_from_user, model_used=Non
 def get_conversation_history(conversation_id, limit=20):
     """Pobiera historię konwersacji"""
     try:
-        response = supabase.table('messages').select('*').eq('conversation_id', conversation_id).order('created_at', ascending=True).limit(limit).execute()
+        response = supabase.table('messages').select('*').eq('conversation_id', conversation_id).order('created_at', desc=False) .limit(limit).execute()
         
         return response.data
     except Exception as e:
@@ -784,7 +784,7 @@ def get_credit_transactions(user_id, days=30):
         response = supabase.table('credit_transactions').select('*')\
             .eq('user_id', user_id)\
             .gte('created_at', start_date)\
-            .order('created_at', ascending=True).execute()
+            .order('created_at', desc=False).execute()
             
         return response.data
     except Exception as e:

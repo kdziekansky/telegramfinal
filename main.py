@@ -11,11 +11,14 @@ logging.basicConfig(level=logging.DEBUG)
 import re
 import datetime
 import pytz
+from handlers.admin_package_handler import (
+    add_package, list_packages, toggle_package, add_default_packages
+)
 from telegram.ext import Application
 from config import TELEGRAM_TOKEN
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram import ReplyKeyboardRemove
-from handlers.help_handler import help_command, check_status
+from handlers.help_handler import help_command
 from handlers.translate_handler import translate_command
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, 
@@ -1589,6 +1592,10 @@ application.add_handler(CommandHandler("transactions", transactions_command))
 
 # Admin commands
 application.add_handler(CommandHandler("gencode", admin_generate_code))
+application.add_handler(CommandHandler("addpackage", add_package))
+application.add_handler(CommandHandler("listpackages", list_packages))
+application.add_handler(CommandHandler("togglepackage", toggle_package))
+application.add_handler(CommandHandler("adddefaultpackages", add_default_packages))
 
 # Handlery dla wiadomości
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))

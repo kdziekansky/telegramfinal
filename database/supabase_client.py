@@ -202,7 +202,7 @@ def check_user_credits(user_id, amount_needed):
 def get_credit_packages():
     """Pobiera dostępne pakiety kredytów"""
     try:
-        response = supabase.table('credit_packages').select('*').eq('is_active', True).order('credits', ascending=True).execute()
+        response = supabase.table('credit_packages').select('*').eq('is_active', True).order('credits', desc=False).execute()
         return response.data
     except Exception as e:
         logger.error(f"Błąd przy pobieraniu pakietów kredytów: {e}")

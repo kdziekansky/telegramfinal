@@ -1027,35 +1027,35 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         await handle_theme_callback(update, context)
         return
     
-# POPRAWKA: Bezpośrednia obsługa history_view
-if query.data == "history_view":
-    user_id = query.from_user.id
-    language = get_user_language(context, user_id)
-    
-    # Dodaj log
-    print(f"Obsługa history_view dla użytkownika {user_id}")
-    
-    # Pobierz aktywną konwersację
-    from database.supabase_client import get_active_conversation, get_conversation_history
-    conversation = get_active_conversation(user_id)
-    
-    if not conversation:
-        # Informacja przez notyfikację
-        await query.answer(get_text("history_no_conversation", language))
+    # POPRAWKA: Bezpośrednia obsługa history_view
+    if query.data == "history_view":
+        user_id = query.from_user.id
+        language = get_user_language(context, user_id)
         
-        # Wyświetl komunikat również w wiadomości
-        message_text = get_text("history_no_conversation", language)
-        keyboard = [[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+        # Dodaj log
+        print(f"Obsługa history_view dla użytkownika {user_id}")
         
-        result = await update_message(
-            query,
-            message_text,
-            reply_markup,
-            parse_mode=ParseMode.MARKDOWN
-        )
-        print(f"Wynik update_message dla braku konwersacji: {result}")
-        return True
+        # Pobierz aktywną konwersację
+        from database.supabase_client import get_active_conversation, get_conversation_history
+        conversation = get_active_conversation(user_id)
+        
+        if not conversation:
+            # Informacja przez notyfikację
+            await query.answer(get_text("history_no_conversation", language))
+            
+            # Wyświetl komunikat również w wiadomości
+            message_text = get_text("history_no_conversation", language)
+            keyboard = [[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            result = await update_message(
+                query,
+                message_text,
+                reply_markup,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            print(f"Wynik update_message dla braku konwersacji: {result}")
+            return True
     
     # Pobierz historię konwersacji
     history = get_conversation_history(conversation['id'])

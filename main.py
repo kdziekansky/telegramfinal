@@ -1875,17 +1875,63 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             )
             return True
 
-    elif query.data == "quick_buy_credits":
+    elif query.data == "quick_buy_credits" or query.data == "menu_credits_buy":
         try:
-            # Użyj istniejącej implementacji dla menu_credits_buy
-            query.data = "menu_credits_buy"
-            from handlers.credit_handler import handle_credit_callback
-            return await handle_credit_callback(update, context)
+            user_id = query.from_user.id
+            language = get_user_language(context, user_id)
+            
+            # Pobierz dostępne metody płatności
+            from database.payment_client import get_available_payment_methods
+            payment_methods = get_available_payment_methods(language)
+            
+            if not payment_methods:
+                await query.answer(get_text("payment_methods_unavailable", language, 
+                                default="Obecnie brak dostępnych metod płatności. Spróbuj ponownie później."))
+                return True
+            
+            # Utwórz przyciski dla każdej metody płatności
+            keyboard = []
+            for method in payment_methods:
+                keyboard.append([
+                    InlineKeyboardButton(
+                        method["name"], 
+                        callback_data=f"payment_method_{method['code']}"
+                    )
+                ])
+            
+            # Dodaj przycisk powrotu
+            keyboard.append([
+                InlineKeyboardButton(
+                    get_text("back", language), 
+                    callback_data="menu_section_credits"
+                )
+            ])
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            # Wyświetl menu metod płatności
+            if hasattr(query.message, 'caption'):
+                await query.edit_message_caption(
+                    caption=get_text("select_payment_method", language, default="Wybierz metodę płatności:"),
+                    reply_markup=reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            else:
+                await query.edit_message_text(
+                    text=get_text("select_payment_method", language, default="Wybierz metodę płatności:"),
+                    reply_markup=reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            
+            return True
         except Exception as e:
-            print(f"Błąd przy przekierowaniu do zakupu kredytów: {e}")
+            print(f"Błąd przy wyświetlaniu metod płatności: {e}")
+            import traceback
+            traceback.print_exc()
+            
             await handle_callback_error(
                 query,
-                "Wystąpił błąd podczas przekierowania do zakupu kredytów.",
+                "Wystąpił błąd podczas ładowania metod płatności.",
                 full_error=str(e)
             )
             return True

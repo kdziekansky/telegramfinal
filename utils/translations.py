@@ -85,7 +85,7 @@ translations = {
         
         # Do ustawień i personalizacji
         "check_balance": "Stan konta",
-        "buy_credits_btn": "Kup kredyty",
+        "buy_credits_btn": "Kup",
         "credit_stats": "Statystyki",
         "promo_code": "Kod promocyjny",
         "view_history": "Zobacz historię",
@@ -362,6 +362,17 @@ translations = {
         "prompt_nutritionist": "Jesteś dietetykiem, który pomaga w planowaniu zdrowego odżywiania, układaniu diet i analizie wartości odżywczych. Zawsze podkreślasz znaczenie zbilansowanej diety i zachęcasz do konsultacji z profesjonalistami w przypadku specyficznych problemów zdrowotnych.",
         "prompt_fitness_coach": "Jesteś trenerem fitness, który pomaga w planowaniu treningów, technikach ćwiczeń i motywacji. Twoje porady są dostosowane do różnych poziomów zaawansowania i zawsze uwzględniają bezpieczeństwo ćwiczącego.",
         "prompt_career_advisor": "Jesteś doradcą kariery, który pomaga w planowaniu ścieżki zawodowej, pisaniu CV i przygotowaniach do rozmów kwalifikacyjnych. Twoje porady są praktyczne i oparte na aktualnych trendach rynku pracy.",
+    
+        # Polski
+        "main_menu": "Menu główne",
+        "new_chat": "Nowa",
+        "last_chat": "Ostatnia",
+        "new_chat_created": "Utworzono nową rozmowę",
+        "new_chat_created_message": "✅ Utworzono nową rozmowę. Możesz zacząć pisać!",
+        "returning_to_last_chat": "Powrót do ostatniej rozmowy",
+        "no_active_chat": "Brak aktywnej rozmowy",
+        "quick_actions": "Szybkie akcje",
+        "back_to_main_menu": "Powrót do głównego menu",
     },
     
     "en": {
@@ -447,7 +458,7 @@ translations = {
         
         # Do ustawień i personalizacji
         "check_balance": "Check balance",
-        "buy_credits_btn": "Buy credits",
+        "buy_credits_btn": "Buy",
         "credit_stats": "Statistics",
         "promo_code": "Promo code",
         "view_history": "View history",
@@ -724,6 +735,18 @@ translations = {
         "prompt_nutritionist": "You are a nutritionist who helps with healthy eating planning, diet planning, and nutritional analysis. You always emphasize the importance of a balanced diet and encourage consultation with professionals for specific health issues.",
         "prompt_fitness_coach": "You are a fitness coach who helps with workout planning, exercise techniques, and motivation. Your advice is tailored to different skill levels and always considers the safety of the exerciser.",
         "prompt_career_advisor": "You are a career advisor who helps with career path planning, CV writing, and preparation for job interviews. Your advice is practical and based on current job market trends.",
+    
+        # Angielski
+        "main_menu": "Main Menu",
+        "new_chat": "New",
+        "last_chat": "Last",
+        "new_chat_created": "New chat created",
+        "new_chat_created_message": "✅ New chat created. You can start typing!",
+        "returning_to_last_chat": "Returning to last chat",
+        "no_active_chat": "No active chat",
+        "quick_actions": "Quick Actions",
+        "back_to_main_menu": "Back to Main Menu",
+    
     },
     
     "ru": {
@@ -809,7 +832,7 @@ translations = {
         
         # Do ustawień i personalizacji
         "check_balance": "Проверить баланс",
-        "buy_credits_btn": "Купить кредиты",
+        "buy_credits_btn": "Купить",
         "credit_stats": "Статистика",
         "promo_code": "Промокод",
         "view_history": "Просмотреть историю",
@@ -1087,6 +1110,18 @@ translations = {
         "prompt_nutritionist": "Вы - диетолог, который помогает в планировании здорового питания, составлении диет и анализе питательных веществ. Вы всегда подчеркиваете важность сбалансированной диеты и рекомендуете консультации со специалистами в случае конкретных проблем со здоровьем.",
         "prompt_fitness_coach": "Вы - фитнес-тренер, который помогает в планировании тренировок, техниках упражнений и мотивации. Ваши советы адаптированы для разных уровней подготовки и всегда учитывают безопасность занимающегося.",
         "prompt_career_advisor": "Вы - карьерный консультант, который помогает в планировании карьерного пути, написании резюме и подготовке к собеседованиям. Ваши советы практичны и основаны на актуальных тенденциях рынка труда.",
+    
+        # Rosyjski
+        "main_menu": "Главное меню",
+        "new_chat": "Новый",
+        "last_chat": "Последний",
+        "new_chat_created": "Создан новый чат",
+        "new_chat_created_message": "✅ Создан новый чат. Вы можете начать писать!",
+        "returning_to_last_chat": "Возврат к последнему чату",
+        "no_active_chat": "Нет активного чата",
+        "quick_actions": "Быстрые действия",
+        "back_to_main_menu": "Вернуться в главное меню",
+
     }
 }
 

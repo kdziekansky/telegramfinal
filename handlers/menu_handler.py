@@ -534,13 +534,14 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 help_text,
                 reply_markup=reply_markup
             )
-    except Exception as e2:
-        print(f"Drugi błąd w help_command: {e2}")
+        except Exception as e2:
+            print(f"Drugi błąd w help_command: {e2}")
             # Ostateczna próba - wysłanie uproszczonego tekstu pomocy
             simple_help = "Pomoc i informacje o bocie. Dostępne komendy: /start, /credits, /buy, /status, /newchat, /mode, /image, /restart, /help, /code."
             await update.message.reply_text(
                 simple_help,
                 reply_markup=reply_markup
+            )
 
 async def check_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """

@@ -6,44 +6,7 @@ from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
 from utils.translations import get_text
 from database.credits_client import get_user_credits
-
-# Funkcja pomocnicza do pobierania języka użytkownika
-def get_user_language(context, user_id):
-    """
-    Pobiera język użytkownika z kontekstu lub bazy danych
-    
-    Args:
-        context: Kontekst bota
-        user_id: ID użytkownika
-        
-    Returns:
-        str: Kod języka (pl, en, ru)
-    """
-    # Sprawdź, czy język jest zapisany w kontekście
-    if 'user_data' in context.chat_data and user_id in context.chat_data['user_data'] and 'language' in context.chat_data['user_data'][user_id]:
-        return context.chat_data['user_data'][user_id]['language']
-    
-    # Jeśli nie, pobierz z bazy danych (Supabase)
-    try:
-        from database.supabase_client import supabase
-        
-        response = supabase.table('users').select('language').eq('id', user_id).execute()
-        
-        if response.data and response.data[0].get('language'):
-            # Zapisz w kontekście na przyszłość
-            if 'user_data' not in context.chat_data:
-                context.chat_data['user_data'] = {}
-            
-            if user_id not in context.chat_data['user_data']:
-                context.chat_data['user_data'][user_id] = {}
-            
-            context.chat_data['user_data'][user_id]['language'] = response.data[0]['language']
-            return response.data[0]['language']
-    except Exception as e:
-        print(f"Błąd pobierania języka z bazy: {e}")
-    
-    # Domyślny język, jeśli wszystkie metody zawiodły
-    return "pl"
+from utils.user_utils import get_user_language
 
 # Prosta tymczasowa implementacja funkcji activate_code
 def activate_code(user_id, code):

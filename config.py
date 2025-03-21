@@ -195,13 +195,6 @@ MESSAGE_PLANS = {
     1000: {"name": "Pakiet Biznes", "price": 130.00}
 }
 
-# Stara konfiguracja subskrypcji czasowej (zachowana dla kompatybilności)
-SUBSCRIPTION_PLANS = {
-    30: {"name": "Plan miesięczny", "price": 30.00},
-    60: {"name": "Plan dwumiesięczny", "price": 50.00},
-    90: {"name": "Plan kwartalny", "price": 75.00}
-}
-
 # Maksymalna długość kontekstu (historia konwersacji)
 MAX_CONTEXT_MESSAGES = 20
 

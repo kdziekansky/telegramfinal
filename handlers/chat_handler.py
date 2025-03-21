@@ -48,7 +48,10 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if 'user_data' in context.chat_data and user_id in context.chat_data['user_data']:
         user_data = context.chat_data['user_data'][user_id]
         if 'current_mode' in user_data and user_data['current_mode'] in CHAT_MODES:
-            system_prompt = CHAT_MODES[user_data['current_mode']]["prompt"]
+            mode_id = user_data['current_mode']
+            # Pobierz prompt w wybranym języku, z fallbackiem na domyślny
+            prompt_key = f"prompt_{mode_id}"
+            system_prompt = get_text(prompt_key, language, default=CHAT_MODES[mode_id]["prompt"])
     
     # Przygotuj wiadomości dla API OpenAI
     messages = prepare_messages_from_history(history, user_message, system_prompt)

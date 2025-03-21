@@ -52,11 +52,21 @@ async def payment_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await update.message.reply_text(
-        get_text("select_payment_method", language, default="Wybierz metodę płatności:"),
-        reply_markup=reply_markup,
-        parse_mode=ParseMode.MARKDOWN
-    )
+    # Wyślij wiadomość za pomocą kontekstu.bot, aby obsłużyć zarówno zwykłe wiadomości jak i callbacki
+    if hasattr(update, 'message') and update.message is not None:
+        await update.message.reply_text(
+            get_text("select_payment_method", language, default="Wybierz metodę płatności:"),
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.MARKDOWN
+        )
+    else:
+        # Obsługa dla callbacków
+        await context.bot.send_message(
+            chat_id=update.callback_query.message.chat_id,
+            text=get_text("select_payment_method", language, default="Wybierz metodę płatności:"),
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.MARKDOWN
+        )
 
 async def subscription_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """

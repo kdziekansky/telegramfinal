@@ -133,7 +133,7 @@ async def show_language_selection(update: Update, context: ContextTypes.DEFAULT_
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         # Link do zdjęcia bannera
-        banner_url = "https://i.imgur.com/OiPImmC.png"
+        banner_url = "https://i.imgur.com/OiPImmC.png?v-111"
         
         # Użyj neutralnego języka dla pierwszej wiadomości
         language_message = f"Wybierz język / Choose language / Выберите язык:"
@@ -186,7 +186,7 @@ async def handle_language_selection(update: Update, context: ContextTypes.DEFAUL
         # Teraz wszystkie pobierane teksty będą używać nowego języka
         
         # Link do zdjęcia bannera
-        banner_url = "https://i.imgur.com/PN9p3ng.png"
+        banner_url = "https://i.imgur.com/PN9p3ng.png?v-112"
         
         # Pobierz przetłumaczony tekst powitalny
         welcome_text = get_text("welcome_message", language, bot_name=BOT_NAME)
@@ -264,7 +264,7 @@ async def show_welcome_message(update: Update, context: ContextTypes.DEFAULT_TYP
         credits = get_user_credits(user_id)
         
         # Link do zdjęcia bannera
-        banner_url = "https://i.imgur.com/YPubLDE.png"
+        banner_url = "https://i.imgur.com/YPubLDE.png?v-1123"
         
         # Pobierz przetłumaczony tekst powitalny
         welcome_text = get_text("welcome_message", language, bot_name=BOT_NAME)

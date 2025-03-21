@@ -994,14 +994,33 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             return
     except Exception as e:
         print(f"Błąd w obsłudze callbacków płatności: {e}")
-    
+        import traceback
+        traceback.print_exc()
+
     # Obsługa callbacków kredytów
     try:
+        # Bezpośrednia obsługa callbacków kredytowych
+        if query.data == "menu_credits_check" or query.data == "credits_check":
+            from handlers.credit_handler import credits_command
+            # Utwórz sztuczny obiekt update, aby przekazać do funkcji credits_command
+            fake_update = type('obj', (object,), {'effective_user': query.from_user, 'message': query.message})
+            await credits_command(fake_update, context)
+            return
+        elif query.data == "menu_credits_buy" or query.data == "credits_buy":
+            from handlers.payment_handler import payment_command
+            # Utwórz sztuczny obiekt update, aby przekazać do funkcji payment_command
+            fake_update = type('obj', (object,), {'effective_user': query.from_user, 'message': query.message})
+            await payment_command(fake_update, context)
+            return
+        
+        # Standardowa obsługa innych callbacków kredytowych
         credit_handled = await handle_credit_callback(update, context)
         if credit_handled:
             return
     except Exception as e:
         print(f"Błąd w obsłudze callbacków kredytów: {e}")
+        import traceback
+        traceback.print_exc()
     
     # Obsługa przycisków onboardingu
     if query.data.startswith("onboarding_"):

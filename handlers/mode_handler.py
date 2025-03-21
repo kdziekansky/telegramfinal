@@ -83,9 +83,10 @@ async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TY
     if "model" in CHAT_MODES[mode_id]:
         context.chat_data['user_data'][user_id]['current_model'] = CHAT_MODES[mode_id]["model"]
     
-    # Pobierz przetłumaczoną nazwę trybu i inne informacje
+        # Pobierz przetłumaczoną nazwę trybu i inne informacje
     mode_name = get_text(f"chat_mode_{mode_id}", language, default=CHAT_MODES[mode_id]["name"])
-    mode_description = CHAT_MODES[mode_id]["prompt"]
+    prompt_key = f"prompt_{mode_id}"
+    mode_description = get_text(prompt_key, language, default=CHAT_MODES[mode_id]["prompt"])
     credit_cost = CHAT_MODES[mode_id]["credit_cost"]
     
     # Skróć opis, jeśli jest zbyt długi

@@ -169,23 +169,116 @@ async def handle_credit_callback(update: Update, context: ContextTypes.DEFAULT_T
         
         # Update message
         try:
-            await query.edit_message_text(
-                message, 
-                reply_markup=reply_markup, 
-                parse_mode=ParseMode.MARKDOWN
-            )
+            # Check if message has caption (is a photo or other media type)
+            if hasattr(query.message, 'caption'):
+                await query.edit_message_caption(
+                    caption=message,
+                    reply_markup=reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            else:
+                await query.edit_message_text(
+                    text=message,
+                    reply_markup=reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
         except Exception as e:
             print(f"Error updating message: {e}")
+            # Try without markdown formatting
+            try:
+                plain_message = message.replace("*", "")
+                if hasattr(query.message, 'caption'):
+                    await query.edit_message_caption(
+                        caption=plain_message,
+                        reply_markup=reply_markup
+                    )
+                else:
+                    await query.edit_message_text(
+                        text=plain_message,
+                        reply_markup=reply_markup
+                    )
+            except Exception as e2:
+                print(f"Second error updating message: {e2}")
         return True
     
     # Handle credit purchase options
     if query.data == "credits_buy" or query.data == "menu_credits_buy":
-        # Redirect to payment methods
-        from handlers.payment_handler import handle_payment_callback
+        # Get credit packages
+        packages = get_credit_packages()
         
-        # Create a mock callback query for payment_command
-        query.data = "payment_command"
-        return await handle_payment_callback(update, context)
+        packages_text = ""
+        for pkg in packages:
+            packages_text += f"*{pkg['id']}.* {pkg['name']} - *{pkg['credits']}* {get_text('credits', language)} - *{pkg['price']} PLN*\n"
+        
+        # Create keyboard with packages
+        keyboard = []
+        for pkg in packages:
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"{pkg['name']} - {pkg['credits']} {get_text('credits', language)} ({pkg['price']} PLN)", 
+                    callback_data=f"buy_package_{pkg['id']}"
+                )
+            ])
+        
+        # Add Telegram stars button
+        keyboard.append([
+            InlineKeyboardButton("⭐ " + get_text("buy_with_stars", language, default="Kup za gwiazdki Telegram"), 
+                                callback_data="show_stars_options")
+        ])
+        
+        # Add back button
+        keyboard.append([
+            InlineKeyboardButton(get_text("back", language), callback_data="menu_section_credits")
+        ])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Buy credits info text
+        message = get_text("buy_credits", language, packages=packages_text)
+        
+        # Check if message has caption (is a photo or other media type)
+        try:
+            if hasattr(query.message, 'caption'):
+                await query.edit_message_caption(
+                    caption=message,
+                    reply_markup=reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            else:
+                await query.edit_message_text(
+                    text=message,
+                    reply_markup=reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            return True
+        except Exception as e:
+            print(f"Error updating message: {e}")
+            # Try without markdown formatting
+            try:
+                plain_message = message.replace("*", "")
+                if hasattr(query.message, 'caption'):
+                    await query.edit_message_caption(
+                        caption=plain_message,
+                        reply_markup=reply_markup
+                    )
+                else:
+                    await query.edit_message_text(
+                        text=plain_message,
+                        reply_markup=reply_markup
+                    )
+                return True
+            except Exception as e2:
+                print(f"Second error updating message: {e2}")
+                
+            # If still failing, try redirecting to payment_command as fallback
+            try:
+                from handlers.payment_handler import handle_payment_callback
+                # Create a mock callback query for payment_command
+                query.data = "payment_command"
+                return await handle_payment_callback(update, context)
+            except Exception as e3:
+                print(f"Error redirecting to payment handler: {e3}")
+                return True
     
     # Handle advanced credit analytics
     if query.data == "credits_stats" or query.data == "credit_advanced_analytics":

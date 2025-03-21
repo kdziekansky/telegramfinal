@@ -244,7 +244,10 @@ async def update_message(query, caption_or_text, reply_markup, parse_mode=None):
         bool: True jeśli się powiodło, False w przypadku błędu
     """
     try:
-        if hasattr(query.message, 'caption'):
+        # Sprawdzamy, czy wiadomość ma caption (jest zdjęciem lub innym typem mediów)
+        has_caption = hasattr(query.message, 'caption') and query.message.caption is not None
+        
+        if has_caption:
             # Wiadomość ma podpis (jest to zdjęcie lub inny typ mediów)
             if parse_mode:
                 await query.edit_message_caption(
@@ -281,7 +284,23 @@ async def update_message(query, caption_or_text, reply_markup, parse_mode=None):
             except Exception as e2:
                 print(f"Drugi błąd aktualizacji wiadomości: {e2}")
         
-        return False
+        # Ostatnia szansa - stwórz nową wiadomość zamiast edytować istniejącą
+        try:
+            await query.message.delete()
+            message = await query.message.chat.send_message(
+                text=caption_or_text,
+                reply_markup=reply_markup,
+                parse_mode=parse_mode
+            )
+            
+            # Jeśli funkcja store_menu_state jest dostępna, zapisz ID nowej wiadomości
+            if 'store_menu_state' in globals():
+                store_menu_state(context, user_id, menu_state, message.message_id)
+            
+            return True
+        except Exception as e3:
+            print(f"Trzeci błąd aktualizacji wiadomości: {e3}")
+            return False
 
 # ==================== FUNKCJE OBSŁUGUJĄCE POSZCZEGÓLNE SEKCJE MENU ====================
 

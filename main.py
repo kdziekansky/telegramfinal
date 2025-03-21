@@ -1070,52 +1070,61 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         await handle_language_selection(update, context)
         return
     
-    # Obsługa wyboru modelu
-    if query.data.startswith("model_"):
+    # Obsługa wyboru języka
+    if query.data.startswith("start_lang_"):
         try:
-            print(f"Wykryto wybór modelu: {query.data}")
-            model_id = query.data[6:]  # Usuń prefiks "model_"
-            
+            language_code = query.data[11:]  # Usuń prefiks "start_lang_"
             user_id = query.from_user.id
-            language = get_user_language(context, user_id)
             
-            # Zapisz wybrany model w kontekście użytkownika
+            # Zapisz język w bazie danych
+            try:
+                from database.supabase_client import update_user_language
+                update_user_language(user_id, language_code)
+            except Exception as e:
+                print(f"Błąd zapisywania języka: {e}")
+            
+            # Zapisz język w kontekście
             if 'user_data' not in context.chat_data:
                 context.chat_data['user_data'] = {}
+            
             if user_id not in context.chat_data['user_data']:
                 context.chat_data['user_data'][user_id] = {}
             
-            context.chat_data['user_data'][user_id]['current_model'] = model_id
+            context.chat_data['user_data'][user_id]['language'] = language_code
             
-            # Przygotuj komunikat potwierdzający
-            model_name = AVAILABLE_MODELS.get(model_id, get_text("unknown_model", language, default="Nieznany model"))
-            credit_cost = CREDIT_COSTS["message"].get(model_id, CREDIT_COSTS["message"]["default"])
+            # Pobierz nazwę wybranego języka
+            language_name = AVAILABLE_LANGUAGES.get(language_code, language_code)
             
-            message = get_text("model_selected", language, model=model_name, credits=credit_cost)
+            # Pasek nawigacyjny
+            nav_path = get_text("main_menu", language_code, default="Menu główne") + " > " + get_text("menu_settings", language_code) + " > " + get_text("settings_language", language_code)
             
-            # Przyciski powrotu do ustawień
+            # Przygotuj wiadomość potwierdzającą
+            message = f"*{nav_path}*\n\n" + get_text("language_changed", language_code, language=language_name, default=f"Język został zmieniony na: {language_name}")
+            
+            # Przyciski powrotu i szybkie akcje
             keyboard = [
-                [InlineKeyboardButton(get_text("back", language), callback_data="menu_section_settings")]
+                # Pasek szybkiego dostępu
+                [
+                    InlineKeyboardButton("🆕 " + get_text("new_chat", language_code, default="Nowa rozmowa"), callback_data="quick_new_chat"),
+                    InlineKeyboardButton("💬 " + get_text("last_chat", language_code, default="Ostatnia rozmowa"), callback_data="quick_last_chat"),
+                    InlineKeyboardButton("💸 " + get_text("buy_credits_btn", language_code, default="Kup kredyty"), callback_data="quick_buy_credits")
+                ],
+                [InlineKeyboardButton("⬅️ " + get_text("back", language_code), callback_data="menu_section_settings")]
             ]
+            
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            # Poinformuj użytkownika
+            # Aktualizuj wiadomość
             try:
-                if hasattr(query.message, 'caption'):
-                    await query.edit_message_caption(
-                        caption=message,
-                        parse_mode=ParseMode.MARKDOWN,
-                        reply_markup=reply_markup
-                    )
-                else:
-                    await query.edit_message_text(
-                        text=message,
-                        parse_mode=ParseMode.MARKDOWN,
-                        reply_markup=reply_markup
-                    )
+                await update_message(
+                    query,
+                    message,
+                    reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
             except Exception as e:
-                print(f"Błąd aktualizacji wiadomości: {e}")
-                # Próba bez formatowania
+                print(f"Błąd przy aktualizacji wiadomości wyboru języka: {e}")
+                # Spróbuj bez formatowania
                 try:
                     if hasattr(query.message, 'caption'):
                         await query.edit_message_caption(
@@ -1132,12 +1141,12 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             
             return True
         except Exception as e:
-            print(f"Błąd przy obsłudze wyboru modelu: {e}")
+            print(f"Błąd przy obsłudze wyboru języka: {e}")
             import traceback
             traceback.print_exc()
             
             # Powiadom użytkownika o błędzie
-            await query.answer("Wystąpił błąd podczas wyboru modelu.")
+            await query.answer("Wystąpił błąd podczas zmiany języka.")
             return True
 
     # Obsługa wyboru trybu czatu
@@ -1796,6 +1805,90 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         except Exception as e:
             print(f"Błąd przy obsłudze menu_back_main: {e}")
             # W przypadku błędu, kontynuujemy do standardowej obsługi
+
+    elif query.data == "quick_new_chat":
+        try:
+            user_id = query.from_user.id
+            language = get_user_language(context, user_id)
+            
+            # Utwórz nową konwersację
+            from database.supabase_client import create_new_conversation
+            conversation = create_new_conversation(user_id)
+            
+            await query.answer(get_text("new_chat_created", language, default="Utworzono nową rozmowę"))
+            
+            # Zamknij menu, aby użytkownik mógł zacząć pisać
+            await query.message.delete()
+            
+            # Ewentualnie wyślij komunikat potwierdzający utworzenie nowej rozmowy
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=get_text("new_chat_created_message", language, default="✅ Utworzono nową rozmowę. Możesz zacząć pisać!")
+            )
+            return True
+        except Exception as e:
+            print(f"Błąd przy tworzeniu nowej rozmowy: {e}")
+            await handle_callback_error(
+                query,
+                "Wystąpił błąd podczas tworzenia nowej rozmowy.",
+                full_error=str(e)
+            )
+            return True
+
+    elif query.data == "quick_last_chat":
+        try:
+            user_id = query.from_user.id
+            language = get_user_language(context, user_id)
+            
+            # Pobierz aktywną konwersację
+            from database.supabase_client import get_active_conversation
+            conversation = get_active_conversation(user_id)
+            
+            if conversation:
+                await query.answer(get_text("returning_to_last_chat", language, default="Powrót do ostatniej rozmowy"))
+                
+                # Zamknij menu i pozwól użytkownikowi wrócić do czatu
+                await query.message.delete()
+            else:
+                await query.answer(get_text("no_active_chat", language, default="Brak aktywnej rozmowy"))
+                
+                # Utwórz nową konwersację i wróć do głównego menu
+                from database.supabase_client import create_new_conversation
+                create_new_conversation(user_id)
+                
+                # Zamknij menu, aby użytkownik mógł zacząć pisać
+                await query.message.delete()
+                
+                # Ewentualnie wyślij komunikat
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=get_text("new_chat_created_message", language, default="✅ Utworzono nową rozmowę. Możesz zacząć pisać!")
+                )
+            
+            return True
+        except Exception as e:
+            print(f"Błąd przy obsłudze ostatniej rozmowy: {e}")
+            await handle_callback_error(
+                query,
+                "Wystąpił błąd podczas powrotu do ostatniej rozmowy.",
+                full_error=str(e)
+            )
+            return True
+
+    elif query.data == "quick_buy_credits":
+        try:
+            # Użyj istniejącej implementacji dla menu_credits_buy
+            query.data = "menu_credits_buy"
+            from handlers.credit_handler import handle_credit_callback
+            return await handle_credit_callback(update, context)
+        except Exception as e:
+            print(f"Błąd przy przekierowaniu do zakupu kredytów: {e}")
+            await handle_callback_error(
+                query,
+                "Wystąpił błąd podczas przekierowania do zakupu kredytów.",
+                full_error=str(e)
+            )
+            return True
 
     # Jeśli dotarliśmy tutaj, oznacza to, że callback nie został obsłużony
     print(f"Nieobsłużony callback: {query.data}")

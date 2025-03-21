@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
-from config import DEFAULT_MODEL, BOT_NAME, SUBSCRIPTION_PLANS, CREDIT_COSTS, AVAILABLE_MODELS, CHAT_MODES
+from config import DEFAULT_MODEL, BOT_NAME, CREDIT_COSTS, AVAILABLE_MODELS, CHAT_MODES
 from utils.translations import get_text
 from handlers.menu_handler import get_user_language
 from database.credits_client import get_user_credits

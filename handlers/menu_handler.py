@@ -394,7 +394,9 @@ async def handle_credits_section(update, context, navigation_path=""):
     if navigation_path:
         message_text = f"*{navigation_path}*\n\n"
     
-    message_text += f"{get_text('credits_status', language, credits=get_user_credits(user_id))}\n\n{get_text('credit_options', language)}"
+    credits = get_user_credits(user_id)
+    message_text += get_text("credits_info", language, bot_name=BOT_NAME, credits=credits)
+    
     reply_markup = create_credits_menu_markup(language)
     
     result = await update_message(

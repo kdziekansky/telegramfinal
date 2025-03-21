@@ -19,6 +19,9 @@ from config import TELEGRAM_TOKEN
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram import ReplyKeyboardRemove
 from handlers.help_handler import help_command
+from utils.error_handler import handle_callback_error
+from utils.menu_utils import update_menu
+from utils.user_utils import get_user_language
 from handlers.translate_handler import translate_command
 from utils.menu_utils import update_menu
 from telegram.ext import (
@@ -107,60 +110,6 @@ HTTPXRequest._build_client = patched_build_client
 
 # Inicjalizacja aplikacji
 application = Application.builder().token(TELEGRAM_TOKEN).build()
-
-async def handle_callback_error(query, error_message, full_error=None):
-    """
-    Obsługuje błędy podczas przetwarzania callbacków
-    
-    Args:
-        query: Obiekt callback_query
-        error_message: Krótka wiadomość o błędzie dla użytkownika
-        full_error: Pełny tekst błędu do zalogowania (opcjonalnie)
-    """
-    if full_error:
-        print(f"Błąd podczas obsługi callbacku: {full_error}")
-        import traceback
-        traceback.print_exc()
-    
-    # Powiadom użytkownika o błędzie przez notyfikację
-    try:
-        await query.answer(error_message)
-    except Exception:
-        pass
-    
-    # Spróbuj zaktualizować wiadomość z informacją o błędzie
-    try:
-        if hasattr(query.message, 'caption'):
-            await query.edit_message_caption(
-                caption=f"⚠️ {error_message}\n\nSpróbuj ponownie później.",
-                reply_markup=None
-            )
-        else:
-            await query.edit_message_text(
-                text=f"⚠️ {error_message}\n\nSpróbuj ponownie później.",
-                reply_markup=None
-            )
-    except Exception:
-        # Jeśli nie udało się zaktualizować wiadomości, nie rób nic
-        pass
-
-# Teraz, w funkcji handle_callback_query, zamień wszystkie bloki try-except 
-# na używające tej nowej funkcji pomocniczej. Na przykład:
-
-    # Przykład użycia w obsłudze trybów:
-    if query.data.startswith("mode_"):
-        try:
-            mode_id = query.data[5:]
-            from handlers.mode_handler import handle_mode_selection
-            await handle_mode_selection(update, context, mode_id)
-            return True
-        except Exception as e:
-            await handle_callback_error(
-                query,
-                "Wystąpił błąd podczas wyboru trybu czatu.",
-                full_error=str(e)
-            )
-            return True
 
 # Funkcje onboardingu
 async def onboarding_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1207,3 +1156,48 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         )
     except Exception as e:
         print(f"Błąd przy wyświetlaniu komunikatu o nieobsłużonym callbacku: {e}")
+
+# Rejestracja handlerów komend
+application.add_handler(CommandHandler("start", start_command))
+application.add_handler(CommandHandler("help", help_command))
+application.add_handler(CommandHandler("status", check_status))
+application.add_handler(CommandHandler("newchat", new_chat))
+application.add_handler(CommandHandler("restart", restart_command))
+application.add_handler(CommandHandler("mode", show_modes))
+application.add_handler(CommandHandler("image", generate_image))
+application.add_handler(CommandHandler("export", export_conversation))
+application.add_handler(CommandHandler("language", language_command))
+application.add_handler(CommandHandler("onboarding", onboarding_command))
+application.add_handler(CommandHandler("translate", translate_command))
+
+# Handlery kredytów i płatności
+application.add_handler(CommandHandler("credits", credits_command))
+application.add_handler(CommandHandler("buy", buy_command))
+application.add_handler(CommandHandler("creditstats", credit_stats_command))
+application.add_handler(CommandHandler("payment", payment_command))
+application.add_handler(CommandHandler("subscription", subscription_command))
+application.add_handler(CommandHandler("code", code_command))
+
+# Handlery dla administratorów
+application.add_handler(CommandHandler("addpackage", add_package))
+application.add_handler(CommandHandler("listpackages", list_packages))
+application.add_handler(CommandHandler("togglepackage", toggle_package))
+application.add_handler(CommandHandler("adddefaultpackages", add_default_packages))
+application.add_handler(CommandHandler("gencode", admin_generate_code))
+
+# Handler wiadomości tekstowych
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+
+# Handler dokumentów
+application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+
+# Handler zdjęć
+application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+
+# Handler dla callbacków (przycisków)
+application.add_handler(CallbackQueryHandler(handle_callback_query))
+
+# Uruchomienie bota
+if __name__ == "__main__":
+    print("Bot uruchomiony. Naciśnij Ctrl+C, aby zatrzymać.")
+    application.run_polling()

@@ -2,6 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
 from config import BOT_NAME
+from utils.user_utils import get_user_language
 from utils.translations import get_text
 from database.credits_client import (
     get_user_credits, add_user_credits, deduct_user_credits, 
@@ -16,43 +17,6 @@ import matplotlib
 matplotlib.use('Agg')  # Required for operation without a graphical interface
 
 from database.credits_client import add_stars_payment_option, get_stars_conversion_rate
-
-# Function moved from menu_handler.py to avoid circular import
-def get_user_language(context, user_id):
-    """
-    Get the user's language from context or database
-    
-    Args:
-        context: Bot context
-        user_id: User ID
-        
-    Returns:
-        str: Language code (pl, en, ru)
-    """
-    # Check if language is saved in context
-    if 'user_data' in context.chat_data and user_id in context.chat_data['user_data'] and 'language' in context.chat_data['user_data'][user_id]:
-        return context.chat_data['user_data'][user_id]['language']
-    
-    # If not, get from database
-    try:
-        from database.supabase_client import supabase
-        response = supabase.table('users').select('language').eq('id', user_id).execute()
-        
-        if response.data and response.data[0].get('language'):
-            # Save in context for future use
-            if 'user_data' not in context.chat_data:
-                context.chat_data['user_data'] = {}
-            
-            if user_id not in context.chat_data['user_data']:
-                context.chat_data['user_data'][user_id] = {}
-            
-            context.chat_data['user_data'][user_id]['language'] = response.data[0]['language']
-            return response.data[0]['language']
-    except Exception as e:
-        print(f"Error getting language from database: {e}")
-    
-    # Default language if not found in database
-    return "pl"
 
 async def credits_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """

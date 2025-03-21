@@ -30,22 +30,45 @@ except ImportError:
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Obsługa komendy /start
-    Wyświetla wybór języka lub banner graficzny i wiadomość powitalną z menu
+    Wyświetla od razu menu powitalne dla istniejących użytkowników,
+    a wybór języka tylko dla nowych
     """
     try:
         user = update.effective_user
+        user_id = user.id
         
         # Sprawdź, czy użytkownik istnieje w bazie
         user_data = get_or_create_user(
-            user_id=user.id,
+            user_id=user_id,
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
             language_code=user.language_code
         )
         
-        # Zawsze pokazuj wybór języka przy starcie
-        await show_language_selection(update, context)
+        # Sprawdź, czy język jest już ustawiony
+        language = get_user_language(context, user_id)
+        
+        # Sprawdź czy to domyślny język (pl) czy wybrany przez użytkownika
+        has_language_in_context = ('user_data' in context.chat_data and 
+                                  user_id in context.chat_data['user_data'] and 
+                                  'language' in context.chat_data['user_data'][user_id])
+        
+        # Sprawdź też w bazie danych, czy użytkownik ma już ustawiony język
+        has_language_in_db = False
+        try:
+            response = supabase.table('users').select('language').eq('id', user_id).execute()
+            if response.data and response.data[0].get('language'):
+                has_language_in_db = True
+        except Exception:
+            pass  # Ignoruj błędy przy sprawdzaniu bazy
+
+        # Jeśli użytkownik ma już ustawiony język, pokaż menu od razu
+        if has_language_in_context or has_language_in_db:
+            await show_welcome_message(update, context, user_id=user_id, language=language)
+        else:
+            # Jeśli to nowy użytkownik - pokaż wybór języka
+            await show_language_selection(update, context)
         
     except Exception as e:
         print(f"Błąd w funkcji start_command: {e}")

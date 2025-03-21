@@ -658,7 +658,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     increment_messages_used(user_id)
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Obsługa przesłanych dokumentów"""
+    """Obsługa przesłanych dokumentów z naturalnym interfejsem"""
     user_id = update.effective_user.id
     language = get_user_language(context, user_id)
     
@@ -676,25 +676,80 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(get_text("file_too_large", language))
         return
     
-    # Sprawdź, czy to jest prośba o tłumaczenie
+    # Pobierz tekst dołączony do dokumentu (jeśli istnieje)
     caption = update.message.caption or ""
-    translate_mode = False
     
-    if caption.lower().startswith("/translate") or caption.lower().startswith("przetłumacz"):
-        translate_mode = True
-    
-    # Sprawdź, czy plik to PDF i czy jest w trybie tłumaczenia
+    # Sprawdź, czy to jest plik PDF
     is_pdf = file_name.lower().endswith('.pdf')
     
-    # Pobierz plik
-    if translate_mode and is_pdf:
-        from handlers.pdf_handler import handle_pdf_translation
-        await handle_pdf_translation(update, context)
+    # Określ akcję na podstawie tekstu użytkownika
+    if not caption:
+        # Jeśli nie ma tekstu, zapytaj co użytkownik chce zrobić i pokaż przykłady
+        # Zapisz ID dokumentu w kontekście do późniejszego użycia
+        if 'user_data' not in context.chat_data:
+            context.chat_data['user_data'] = {}
+        if user_id not in context.chat_data['user_data']:
+            context.chat_data['user_data'][user_id] = {}
+            
+        context.chat_data['user_data'][user_id]['last_document_id'] = document.file_id
+        context.chat_data['user_data'][user_id]['last_document_name'] = file_name
+        
+        # Tekst z sugestiami w naturalnym języku
+        if is_pdf:
+            suggestions_text = get_text("pdf_suggestions", language, default=
+                "Co chcesz zrobić z tym dokumentem PDF? Odpowiedz jednym z przykładów:\n\n"
+                "• \"Analizuj ten dokument\"\n"
+                "• \"Przetłumacz ten dokument\"\n"
+                "• \"Streszcz zawartość pliku\"\n"
+                "• \"Wyciągnij najważniejsze informacje z tego PDF\"\n\n"
+                "Po prostu odpowiedz na tę wiadomość z tym, co chcesz zrobić."
+            )
+        else:
+            suggestions_text = get_text("document_suggestions", language, default=
+                "Co chcesz zrobić z tym dokumentem? Odpowiedz jednym z przykładów:\n\n"
+                "• \"Analizuj ten dokument\"\n"
+                "• \"Streszcz zawartość pliku\"\n"
+                "• \"Opisz co zawiera ten plik\"\n\n"
+                "Po prostu odpowiedz na tę wiadomość z tym, co chcesz zrobić."
+            )
+        
+        await update.message.reply_text(suggestions_text)
         return
-    elif translate_mode:
-        message = await update.message.reply_text(get_text("translating_document", language))
-    else:
-        message = await update.message.reply_text(get_text("analyzing_file", language))
+    
+    # Analizuj intencję użytkownika na podstawie tekstu
+    caption_lower = caption.lower()
+    
+    # Sprawdź, czy użytkownik chce tłumaczenie
+    if any(word in caption_lower for word in ["tłumacz", "przetłumacz", "translate", "переводить"]):
+        if is_pdf:
+            # Wywołaj funkcję do tłumaczenia PDF
+            from handlers.pdf_handler import handle_pdf_translation
+            await handle_pdf_translation(update, context)
+        else:
+            # Dla innych dokumentów wykonaj analizę z informacją o braku możliwości tłumaczenia
+            message = await update.message.reply_text(get_text("analyzing_file", language))
+            await update.message.chat.send_action(action=ChatAction.TYPING)
+            
+            file = await context.bot.get_file(document.file_id)
+            file_bytes = await file.download_as_bytearray()
+            
+            # Analizuj dokument z dodatkową informacją o braku tłumaczenia
+            result = await analyze_document(file_bytes, file_name)
+            
+            # Odejmij kredyty
+            deduct_user_credits(user_id, credit_cost, f"Analiza dokumentu: {file_name}")
+            
+            # Wyślij analizę
+            await message.edit_text(
+                f"*{get_text('file_analysis', language)}:* {file_name}\n\n"
+                f"{result}\n\n"
+                f"_Uwaga: Tłumaczenie jest dostępne tylko dla plików PDF._",
+                parse_mode=ParseMode.MARKDOWN
+            )
+        return
+    
+    # Domyślnie wykonaj analizę dokumentu
+    message = await update.message.reply_text(get_text("analyzing_file", language))
     
     # Wyślij informację o aktywności bota
     await update.message.chat.send_action(action=ChatAction.TYPING)
@@ -702,35 +757,17 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file = await context.bot.get_file(document.file_id)
     file_bytes = await file.download_as_bytearray()
     
-    # Analizuj plik - w trybie tłumaczenia lub analizy w zależności od opcji
-    if translate_mode:
-        analysis = await analyze_document(file_bytes, file_name, mode="translate")
-        header = f"*{get_text('translated_text', language)}:*\n\n"
-    else:
-        analysis = await analyze_document(file_bytes, file_name)
-        header = f"*{get_text('file_analysis', language)}:* {file_name}\n\n"
+    # Analizuj dokument
+    result = await analyze_document(file_bytes, file_name)
     
     # Odejmij kredyty
-    description = "Tłumaczenie dokumentu" if translate_mode else "Analiza dokumentu"
-    deduct_user_credits(user_id, credit_cost, f"{description}: {file_name}")
+    deduct_user_credits(user_id, credit_cost, f"Analiza dokumentu: {file_name}")
     
     # Wyślij analizę do użytkownika
     await message.edit_text(
-        f"{header}{analysis}",
+        f"*{get_text('file_analysis', language)}:* {file_name}\n\n{result}",
         parse_mode=ParseMode.MARKDOWN
     )
-    
-    # Dodaj klawiaturę z dodatkowymi opcjami dla plików PDF
-    if is_pdf and not translate_mode:
-        keyboard = [[
-            InlineKeyboardButton(get_text("pdf_translate_button", language), callback_data=f"translate_pdf_{document.file_id}")
-        ]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        try:
-            await message.edit_reply_markup(reply_markup=reply_markup)
-        except Exception as e:
-            print(f"Błąd dodawania klawiatury: {e}")
     
     # Sprawdź aktualny stan kredytów
     credits = get_user_credits(user_id)
@@ -741,7 +778,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Obsługa przesłanych zdjęć"""
+    """Obsługa przesłanych zdjęć z naturalnym interfejsem jak ChatGPT"""
     user_id = update.effective_user.id
     language = get_user_language(context, user_id)
     
@@ -751,125 +788,81 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(get_text("subscription_expired", language))
         return
     
-    # Sprawdź, czy zdjęcie zostało przesłane z komendą tłumaczenia
+    # Pobierz tekst dołączony do zdjęcia (jeśli istnieje)
     caption = update.message.caption or ""
-    translate_mode = False
     
-    if caption.lower().startswith("/translate") or caption.lower().startswith("przetłumacz"):
-        translate_mode = True
+    # Określ akcję na podstawie tekstu użytkownika
+    if not caption:
+        # Jeśli nie ma tekstu, zapytaj co użytkownik chce zrobić i pokaż przykłady
+        # Zapisz ID zdjęcia w kontekście do późniejszego użycia
+        if 'user_data' not in context.chat_data:
+            context.chat_data['user_data'] = {}
+        if user_id not in context.chat_data['user_data']:
+            context.chat_data['user_data'][user_id] = {}
+            
+        context.chat_data['user_data'][user_id]['last_photo_id'] = update.message.photo[-1].file_id
+        
+        # Tekst z sugestiami w naturalnym języku
+        suggestions_text = get_text("photo_suggestions", language, default=
+            "Co chcesz zrobić z tym zdjęciem? Odpowiedz jednym z przykładów:\n\n"
+            "• \"Opisz co widzisz na zdjęciu\"\n"
+            "• \"Przetłumacz tekst z tego zdjęcia\"\n"
+            "• \"Przetłumacz tekst ze zdjęcia na angielski\"\n"
+            "• \"Analizuj obraz i powiedz co przedstawia\"\n"
+            "• \"Jaki obiekt jest na tym obrazie?\"\n\n"
+            "Po prostu odpowiedz na tę wiadomość z tym, co chcesz zrobić."
+        )
+        
+        await update.message.reply_text(suggestions_text)
+        return
+        
+    # Analizuj intencję użytkownika na podstawie tekstu
+    caption_lower = caption.lower()
     
-    # Wybierz zdjęcie o najwyższej rozdzielczości
-    photo = update.message.photo[-1]
-    
-    # Pobierz zdjęcie
-    if translate_mode:
-        message = await update.message.reply_text("Tłumaczę tekst ze zdjęcia, proszę czekać...")
+    # Sprawdź, czy użytkownik chce tłumaczenie
+    if any(word in caption_lower for word in ["tłumacz", "przetłumacz", "translate", "переводить"]):
+        mode = "translate"
+        message = await update.message.reply_text(get_text("translating_image", language))
+    # Sprawdź, czy użytkownik chce analizę
+    elif any(word in caption_lower for word in ["analizuj", "analiza", "opisz", "analyze", "describe", "what is"]):
+        mode = "analyze"
+        message = await update.message.reply_text(get_text("analyzing_photo", language))
+    # Domyślnie wykonaj analizę
     else:
+        mode = "analyze"
         message = await update.message.reply_text(get_text("analyzing_photo", language))
     
     # Wyślij informację o aktywności bota
     await update.message.chat.send_action(action=ChatAction.TYPING)
     
+    # Wybierz zdjęcie o najwyższej rozdzielczości
+    photo = update.message.photo[-1]
+    
+    # Pobierz zdjęcie
     file = await context.bot.get_file(photo.file_id)
     file_bytes = await file.download_as_bytearray()
     
     # Analizuj zdjęcie w odpowiednim trybie
-    if translate_mode:
-        result = await analyze_image(file_bytes, f"photo_{photo.file_unique_id}.jpg", mode="translate")
-        header = "*Tłumaczenie tekstu ze zdjęcia:*\n\n"
-    else:
-        result = await analyze_image(file_bytes, f"photo_{photo.file_unique_id}.jpg", mode="analyze")
-        header = "*Analiza zdjęcia:*\n\n"
+    result = await analyze_image(file_bytes, f"photo_{photo.file_unique_id}.jpg", mode=mode)
     
     # Odejmij kredyty
-    description = "Tłumaczenie tekstu ze zdjęcia" if translate_mode else "Analiza zdjęcia"
+    description = "Tłumaczenie tekstu ze zdjęcia" if mode == "translate" else "Analiza zdjęcia"
     deduct_user_credits(user_id, credit_cost, description)
     
     # Wyślij analizę/tłumaczenie do użytkownika
+    header = "*Tłumaczenie tekstu ze zdjęcia:*\n\n" if mode == "translate" else "*Analiza zdjęcia:*\n\n"
     await message.edit_text(
         f"{header}{result}",
         parse_mode=ParseMode.MARKDOWN
     )
     
-    # Dodaj klawiaturę z dodatkowymi opcjami
-    if not translate_mode:
-        keyboard = [[
-            InlineKeyboardButton("🔄 Przetłumacz tekst z tego zdjęcia", callback_data=f"translate_photo_{photo.file_id}")
-        ]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        try:
-            await message.edit_reply_markup(reply_markup=reply_markup)
-        except Exception as e:
-            print(f"Błąd dodawania klawiatury: {e}")
-    
     # Sprawdź aktualny stan kredytów
     credits = get_user_credits(user_id)
     if credits < 5:
         await update.message.reply_text(
-            f"*Uwaga:* Pozostało Ci tylko *{credits}* kredytów. "
-            f"Kup więcej za pomocą komendy /buy.",
+            f"*{get_text('low_credits_warning', language)}* {get_text('low_credits_message', language, credits=credits)}",
             parse_mode=ParseMode.MARKDOWN
         )
-
-async def handle_photo_translate(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Obsługa przesłanych zdjęć z poleceniem tłumaczenia tekstu"""
-    user_id = update.effective_user.id
-    language = get_user_language(context, user_id)
-    
-    # Sprawdź, czy użytkownik ma wystarczającą liczbę kredytów
-    credit_cost = CREDIT_COSTS["photo"]
-    if not check_user_credits(user_id, credit_cost):
-        await update.message.reply_text(get_text("subscription_expired", language))
-        return
-    
-    # Wybierz zdjęcie o najwyższej rozdzielczości
-    photo = update.message.photo[-1]
-    
-    # Pobierz zdjęcie
-    message = await update.message.reply_text("Tłumaczę tekst ze zdjęcia, proszę czekać...")
-    
-    # Wyślij informację o aktywności bota
-    await update.message.chat.send_action(action=ChatAction.TYPING)
-    
-    file = await context.bot.get_file(photo.file_id)
-    file_bytes = await file.download_as_bytearray()
-    
-    # Analizuj zdjęcie w trybie tłumaczenia
-    translation = await analyze_image(file_bytes, f"photo_{photo.file_unique_id}.jpg", mode="translate")
-    
-    # Odejmij kredyty
-    deduct_user_credits(user_id, credit_cost, "Tłumaczenie tekstu ze zdjęcia")
-    
-    # Wyślij tłumaczenie do użytkownika
-    await message.edit_text(
-        f"*Tłumaczenie tekstu ze zdjęcia:*\n\n{translation}",
-        parse_mode=ParseMode.MARKDOWN
-    )
-    
-    # Sprawdź aktualny stan kredytów
-    credits = get_user_credits(user_id)
-    if credits < 5:
-        await update.message.reply_text(
-            f"*Uwaga:* Pozostało Ci tylko *{credits}* kredytów. "
-            f"Kup więcej za pomocą komendy /buy.",
-            parse_mode=ParseMode.MARKDOWN
-        )
-        
-async def show_translation_instructions(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Wyświetla instrukcje dotyczące tłumaczenia tekstu ze zdjęć
-    """
-    await update.message.reply_text(
-        "📸 *Tłumaczenie tekstu ze zdjęć*\n\n"
-        "Masz kilka sposobów, aby przetłumaczyć tekst ze zdjęcia:\n\n"
-        "1️⃣ Wyślij zdjęcie, a następnie kliknij przycisk \"🔄 Przetłumacz tekst z tego zdjęcia\" pod analizą\n\n"
-        "2️⃣ Wyślij zdjęcie z podpisem \"/translate\" lub \"przetłumacz\"\n\n"
-        "3️⃣ Użyj komendy /translate a następnie wyślij zdjęcie\n\n"
-        "Bot rozpozna tekst na zdjęciu i przetłumaczy go na język polski. "
-        "Ta funkcja jest przydatna do tłumaczenia napisów, dokumentów, menu, znaków itp.",
-        parse_mode=ParseMode.MARKDOWN
-    )
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obsługa zapytań zwrotnych (z przycisków)"""
@@ -883,7 +876,16 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     # Najpierw odpowiedz, aby usunąć oczekiwanie
     await query.answer()
     
-    # Spróbuj obsłużyć callback różnymi handlerami w określonej kolejności
+    # Daj priorytet obsłudze wyboru języka w /start
+    if query.data.startswith("start_lang_"):
+        try:
+            from handlers.start_handler import handle_language_selection
+            await handle_language_selection(update, context)
+            return
+        except Exception as e:
+            print(f"Błąd w obsłudze wyboru języka: {e}")
+            import traceback
+            traceback.print_exc()
     
     # 1. Menu główne i nawigacja
     if query.data.startswith("menu_"):
@@ -1023,6 +1025,50 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             import traceback
             traceback.print_exc()
 
+    # Obsługa nowych callbacków dla zdjęć
+    elif query.data == "analyze_photo" or query.data == "translate_photo":
+        # Pobierz ID zdjęcia z kontekstu
+        if 'user_data' not in context.chat_data or user_id not in context.chat_data['user_data'] or 'last_photo_id' not in context.chat_data['user_data'][user_id]:
+            await query.answer("Nie znaleziono zdjęcia. Wyślij je ponownie.")
+            return
+            
+        photo_id = context.chat_data['user_data'][user_id]['last_photo_id']
+        mode = "translate" if query.data == "translate_photo" else "analyze"
+        
+        # Pobierz koszt
+        credit_cost = CREDIT_COSTS["photo"]
+        if not check_user_credits(user_id, credit_cost):
+            await query.answer(get_text("subscription_expired", language))
+            return
+        
+        # Informuj o rozpoczęciu analizy
+        message = await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=get_text("translating_image" if mode == "translate" else "analyzing_photo", language)
+        )
+        
+        try:
+            # Pobierz zdjęcie
+            file = await context.bot.get_file(photo_id)
+            file_bytes = await file.download_as_bytearray()
+            
+            # Analizuj zdjęcie
+            result = await analyze_image(file_bytes, f"photo_{photo_id}.jpg", mode=mode)
+            
+            # Odejmij kredyty
+            description = "Tłumaczenie tekstu ze zdjęcia" if mode == "translate" else "Analiza zdjęcia"
+            deduct_user_credits(user_id, credit_cost, description)
+            
+            # Wyślij wynik
+            header = "*Tłumaczenie tekstu ze zdjęcia:*\n\n" if mode == "translate" else "*Analiza zdjęcia:*\n\n"
+            await message.edit_text(
+                f"{header}{result}",
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except Exception as e:
+            print(f"Błąd przy analizie zdjęcia: {e}")
+            await message.edit_text("Wystąpił błąd podczas analizy zdjęcia. Spróbuj ponownie.")
+
     elif query.data.startswith("translate_pdf_"):
         try:
             document_file_id = query.data.replace("translate_pdf_", "")
@@ -1075,6 +1121,77 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             print(f"Błąd przy tłumaczeniu PDF: {e}")
             import traceback
             traceback.print_exc()
+
+    # Obsługa nowych callbacków dla dokumentów
+    elif query.data == "analyze_document" or query.data == "translate_document":
+        # Pobierz ID dokumentu z kontekstu
+        if ('user_data' not in context.chat_data or 
+            user_id not in context.chat_data['user_data'] or 
+            'last_document_id' not in context.chat_data['user_data'][user_id]):
+            await query.answer("Nie znaleziono dokumentu. Wyślij go ponownie.")
+            return
+            
+        document_id = context.chat_data['user_data'][user_id]['last_document_id']
+        file_name = context.chat_data['user_data'][user_id].get('last_document_name', 'dokument')
+        
+        # Sprawdź czy to jest prośba o tłumaczenie PDF
+        if query.data == "translate_document" and file_name.lower().endswith('.pdf'):
+            # Zasymuluj aktualizację z oryginalnym plikiem PDF
+            class MockDocument:
+                def __init__(self, file_id, file_name):
+                    self.file_id = file_id
+                    self.file_name = file_name
+            
+            class MockMessage:
+                def __init__(self, chat_id, document):
+                    self.chat_id = chat_id
+                    self.document = document
+                    self.chat = type('obj', (object,), {'id': chat_id, 'send_action': lambda action: None})
+                    
+                async def reply_text(self, text):
+                    return await context.bot.send_message(chat_id=self.chat_id, text=text)
+            
+            # Utwórz aktualizację z dokumentem
+            mock_document = MockDocument(document_id, file_name)
+            update.message = MockMessage(query.message.chat_id, mock_document)
+            
+            # Wywołaj handler PDF
+            from handlers.pdf_handler import handle_pdf_translation
+            await handle_pdf_translation(update, context)
+            return
+        
+        # Obsługa standardowej analizy dokumentu
+        # Pobierz koszt
+        credit_cost = CREDIT_COSTS["document"]
+        if not check_user_credits(user_id, credit_cost):
+            await query.answer(get_text("subscription_expired", language))
+            return
+        
+        # Informuj o rozpoczęciu analizy
+        message = await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=get_text("analyzing_file", language)
+        )
+        
+        try:
+            # Pobierz dokument
+            file = await context.bot.get_file(document_id)
+            file_bytes = await file.download_as_bytearray()
+            
+            # Analizuj dokument
+            result = await analyze_document(file_bytes, file_name)
+            
+            # Odejmij kredyty
+            deduct_user_credits(user_id, credit_cost, f"Analiza dokumentu: {file_name}")
+            
+            # Wyślij wynik
+            await message.edit_text(
+                f"*{get_text('file_analysis', language)}:* {file_name}\n\n{result}",
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except Exception as e:
+            print(f"Błąd przy analizie dokumentu: {e}")
+            await message.edit_text("Wystąpił błąd podczas analizy dokumentu. Spróbuj ponownie.")
 
     # 10. Szybkie akcje
     elif query.data == "quick_new_chat":

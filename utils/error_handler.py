@@ -92,12 +92,22 @@ async def handle_callback_error(query, error_message, full_error=None, show_retr
         except Exception:
             # Jeśli i to się nie udało, nie rób nic
             pass
+
+def get_user_language(context, user_id):
+    """
+    Pomocnicza funkcja do pobierania języka użytkownika
+    Importowana dynamicznie, aby uniknąć cyklicznych importów
     
-    if not language:
-        try:
-        user_id = query.from_user.id
+    Args:
+        context: Kontekst bota
+        user_id: ID użytkownika
+        
+    Returns:
+        str: Kod języka (pl, en, ru)
+    """
+    try:
         # Importuj funkcję dynamicznie, aby uniknąć cyklicznych importów
-        from utils.user_utils import get_user_language
-        language = get_user_language(context, user_id)
-        except:
-        language = "pl"
+        from utils.user_utils import get_user_language as get_lang
+        return get_lang(context, user_id)
+    except:
+        return "pl"  # Domyślny język w przypadku błędu

@@ -52,21 +52,11 @@ async def payment_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # Wyślij wiadomość za pomocą kontekstu.bot, aby obsłużyć zarówno zwykłe wiadomości jak i callbacki
-    if hasattr(update, 'message') and update.message is not None:
-        await update.message.reply_text(
-            get_text("select_payment_method", language, default="Wybierz metodę płatności:"),
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.MARKDOWN
-        )
-    else:
-        # Obsługa dla callbacków
-        await context.bot.send_message(
-            chat_id=update.callback_query.message.chat_id,
-            text=get_text("select_payment_method", language, default="Wybierz metodę płatności:"),
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.MARKDOWN
-        )
+    await update.message.reply_text(
+        get_text("select_payment_method", language, default="Wybierz metodę płatności:"),
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
 
 async def subscription_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -114,8 +104,8 @@ async def subscription_command(update: Update, context: ContextTypes.DEFAULT_TYP
     # Dodaj przycisk powrotu
     keyboard.append([
         InlineKeyboardButton(
-            get_text("back", language),
-            callback_data="menu_section_credits"
+            get_text("back", language), 
+            callback_data="payment_back_to_credits"
         )
     ])
     
@@ -136,6 +126,16 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
     language = get_user_language(context, user_id)
     
     await query.answer()
+    
+    # Obsługa powrotu do menu głównego
+    if query.data == "menu_back_main":
+        from handlers.menu_handler import handle_back_to_main
+        return await handle_back_to_main(update, context)
+    
+    # Obsługa powrotu do menu kredytów
+    if query.data == "menu_section_credits":
+        from handlers.menu_handler import handle_credits_section
+        return await handle_credits_section(update, context)
     
     # Obsługa wyboru metody płatności
     if query.data.startswith("payment_method_"):
@@ -326,7 +326,7 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
         keyboard.append([
             InlineKeyboardButton(
                 get_text("back", language), 
-                callback_data="menu_section_credits"
+                callback_data="payment_back_to_credits"
             )
         ])
         
@@ -379,8 +379,8 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
         # Dodaj przycisk powrotu
         keyboard.append([
             InlineKeyboardButton(
-                get_text("back", language),
-                callback_data="menu_section_credits"
+                get_text("back", language), 
+                callback_data="payment_back_to_credits"
             )
         ])
         
@@ -430,12 +430,12 @@ async def transactions_command(update: Update, context: ContextTypes.DEFAULT_TYP
         message += f"   {get_text('status', language, default='Status')}: {status_text}, {get_text('date', language, default='Data')}: {date}\n\n"
     
     # Dodaj przycisk powrotu
-    keyboard = [[
+    keyboard.append([
         InlineKeyboardButton(
-            get_text("back", language),
-            callback_data="menu_section_credits"
+            get_text("back", language), 
+            callback_data="payment_back_to_credits"
         )
-    ]]
+    ])
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     

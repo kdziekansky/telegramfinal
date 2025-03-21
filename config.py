@@ -57,6 +57,25 @@ CREDIT_PACKAGES = [
     {"id": 5, "name": "Biznes", "credits": 5000, "price": 179.99}
 ]
 
+PAYMENT_METHODS = {
+    "stripe": {
+        "name": "Stripe (Karta płatnicza)",
+        "enabled": True
+    },
+    "stripe_subscription": {
+        "name": "Subskrypcja Stripe",
+        "enabled": True
+    },
+    "allegro": {
+        "name": "Allegro",
+        "enabled": True
+    },
+    "payu": {
+        "name": "PayU",
+        "enabled": True
+    }
+}
+
 # Dostępne języki
 AVAILABLE_LANGUAGES = {
     "pl": "Polski 🇵🇱",

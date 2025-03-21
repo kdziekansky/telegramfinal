@@ -989,6 +989,12 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     
     # Obsługa callbacków płatności
     try:
+        if query.data == "menu_section_credits" or query.data == "menu_back_main":
+            from handlers.menu_handler import handle_menu_callback
+            menu_handled = await handle_menu_callback(update, context)
+            if menu_handled:
+                return
+        
         payment_handled = await handle_payment_callback(update, context)
         if payment_handled:
             return

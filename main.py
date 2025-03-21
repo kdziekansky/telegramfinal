@@ -88,7 +88,6 @@ from utils.openai_client import (
 
 # Import handlera eksportu
 from handlers.export_handler import export_conversation
-from handlers.theme_handler import theme_command, notheme_command, handle_theme_callback
 from utils.credit_analytics import generate_credit_usage_chart, generate_usage_breakdown_chart
 
 # Napraw problem z proxy w httpx
@@ -1209,12 +1208,6 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             await query.answer("Wystąpił błąd podczas zmiany ustawień.")
             return True
 
-    # Obsługa tematów konwersacji
-    if query.data.startswith("theme_") or query.data == "new_theme" or query.data == "no_theme":
-        from handlers.theme_handler import handle_theme_callback
-        await handle_theme_callback(update, context)
-        return
-    
     # POPRAWKA: Bezpośrednia obsługa history_view
     if query.data == "history_view":
         user_id = query.from_user.id
@@ -1751,18 +1744,6 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 )
         return
     
-    # Obsługa notatek
-    if query.data.startswith("note_"):
-        from handlers.note_handler import handle_note_callback
-        await handle_note_callback(update, context)
-        return
-    
-    # Obsługa przypomnień  
-    if query.data.startswith("reminder_"):
-        from handlers.reminder_handler import handle_reminder_callback
-        await handle_reminder_callback(update, context)
-        return
-    
     # Specjalna obsługa przycisku powrotu do głównego menu
     if query.data == "menu_back_main":
         keyboard = [
@@ -1969,8 +1950,6 @@ application.add_handler(CommandHandler("code", code_command))
 application.add_handler(CommandHandler("creditstats", credit_analytics_command))
 application.add_handler(CommandHandler("translate", translate_command))
 application.add_handler(CommandHandler("language", language_command))
-application.add_handler(CommandHandler("theme", theme_command))
-application.add_handler(CommandHandler("notheme", notheme_command))
 application.add_handler(CommandHandler("onboarding", onboarding_command))
 application.add_handler(CommandHandler("setname", set_user_name))
 application.add_handler(CommandHandler("payment", payment_command))

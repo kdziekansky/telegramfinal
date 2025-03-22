@@ -390,7 +390,11 @@ translations = {
                                 "• \"Streszcz zawartość pliku\"\n"
                                 "• \"Opisz co zawiera ten plik\"\n"
                                 "• \"Wyciągnij najważniejsze informacje z pliku\"\n\n"
-                                "Po prostu odpowiedz na tę wiadomość z tym, co chcesz zrobić."
+                                "Po prostu odpowiedz na tę wiadomość z tym, co chcesz zrobić.",
+
+        "no_active_chat_message": "Aby rozpocząć używanie AI, najpierw utwórz nowy czat używając /newchat lub przycisku poniżej. Możesz również wybrać tryb czatu z menu.",
+        "start_new_chat": "Rozpocznij nowy czat",
+        "select_mode": "Wybierz tryb czatu",
     },
     
     "en": {
@@ -780,7 +784,11 @@ translations = {
                                 "• \"Summarize the content of this file\"\n"
                                 "• \"Describe what's in this file\"\n"
                                 "• \"Extract the most important information from this file\"\n\n"
-                                "Just reply to this message with what you want to do."
+                                "Just reply to this message with what you want to do.",
+
+        "no_active_chat_message": "To start using AI, please create a new chat first using /newchat or the button below. You can also select a chat mode from the menu.",
+        "start_new_chat": "Start new chat",
+        "select_mode": "Select chat mode",
     },
     
     "ru": {
@@ -1172,7 +1180,11 @@ translations = {
                                 "• \"Сделай резюме содержания файла\"\n"
                                 "• \"Опиши, что содержится в этом файле\"\n"
                                 "• \"Извлеки самую важную информацию из файла\"\n\n"
-                                "Просто ответьте на это сообщение, написав, что вы хотите сделать."
+                                "Просто ответьте на это сообщение, написав, что вы хотите сделать.",
+                                
+        "no_active_chat_message": "Чтобы начать использовать ИИ, сначала создайте новый чат с помощью /newchat или кнопки ниже. Вы также можете выбрать режим чата из меню.",
+        "start_new_chat": "Начать новый чат",
+        "select_mode": "Выбрать режим чата",
 
     }
 }

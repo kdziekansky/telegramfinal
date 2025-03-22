@@ -5,6 +5,8 @@ from config import CHAT_MODES
 from utils.translations import get_text
 from database.credits_client import get_user_credits
 from handlers.menu_handler import get_user_language
+from utils.user_utils import mark_chat_initialized
+
 
 async def show_modes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Pokazuje dostępne tryby czatu"""

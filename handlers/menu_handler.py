@@ -10,9 +10,10 @@ from utils.menu_utils import safe_markdown, update_menu
 from config import BOT_NAME
 from utils.menu_utils import create_menu_buttons
 from utils.menu_utils import menu_state
-from utils.user_utils import get_user_language
+from utils.user_utils import get_user_language, mark_chat_initialized, is_chat_initialized
 from utils.menu_utils import update_menu
 from utils.error_handler import handle_callback_error
+
 
 
 
@@ -110,8 +111,6 @@ def create_chat_modes_markup(language):
                 callback_data=f"mode_{mode_id}"
             )
         ])
-        return create_menu_buttons(button_configs, language)
-
     
     # Pasek szybkiego dostępu
     keyboard.append([
@@ -252,7 +251,25 @@ async def handle_settings_callbacks(update, context):
             await handle_model_selection(update, context)
             return True
         elif settings_type == "language":
-            await handle_language_selection(update, context)
+            # Pokaż menu wyboru języka
+            keyboard = []
+            for lang_code, lang_name in AVAILABLE_LANGUAGES.items():
+                keyboard.append([
+                    InlineKeyboardButton(
+                        lang_name, 
+                        callback_data=f"start_lang_{lang_code}"
+                    )
+                ])
+            
+            # Dodaj przycisk powrotu
+            keyboard.append([
+                InlineKeyboardButton(get_text("back", language), callback_data="menu_section_settings")
+            ])
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            message_text = get_text("settings_choose_language", language, default="Wybierz język:")
+            await update_menu(query, message_text, reply_markup)
             return True
         elif settings_type == "name":
             await handle_name_settings(update, context)
@@ -280,7 +297,7 @@ async def handle_settings_callbacks(update, context):
         
         # Powiadom użytkownika o zmianie języka
         language_name = AVAILABLE_LANGUAGES.get(language_code, language_code)
-        message = f"Język został zmieniony na: {language_name}"
+        message = f"✅ {get_text('language_changed', language_code, default='Język został zmieniony na')}: {language_name}"
         
         # Przyciski powrotu
         keyboard = [[InlineKeyboardButton("⬅️ " + get_text("back", language_code), callback_data="menu_section_settings")]]
@@ -289,7 +306,7 @@ async def handle_settings_callbacks(update, context):
         await update_menu(query, message, reply_markup)
         return True
     
-    # Obsługa wyboru modelu
+    # Obsługa wyboru modelu 
     elif query.data.startswith("model_"):
         model_id = query.data[6:]  # Usuń prefiks "model_"
         
@@ -301,6 +318,9 @@ async def handle_settings_callbacks(update, context):
             context.chat_data['user_data'][user_id] = {}
         
         context.chat_data['user_data'][user_id]['current_model'] = model_id
+        
+        # Oznacz czat jako zainicjowany
+        mark_chat_initialized(context, user_id)
         
         # Pobierz koszt kredytów dla wybranego modelu
         credit_cost = CREDIT_COSTS["message"].get(model_id, CREDIT_COSTS["message"]["default"])
@@ -719,9 +739,13 @@ async def new_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     language = get_user_language(context, user_id)
     
     # Utwórz nową konwersację
+    from database.supabase_client import create_new_conversation
     conversation = create_new_conversation(user_id)
     
     if conversation:
+        # Oznacz czat jako zainicjowany
+        mark_chat_initialized(context, user_id)
+        
         # Dodaj przyciski menu dla łatwiejszej nawigacji
         keyboard = [
             [InlineKeyboardButton(get_text("menu_chat_mode", language), callback_data="menu_section_chat_modes")],
@@ -1434,6 +1458,29 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         return await handle_image_section(update, context, nav_path)
     elif query.data == "menu_back_main":
         return await handle_back_to_main(update, context)
+    # Opcje menu kredytów
+    elif query.data == "menu_credits_check":
+        try:
+            from handlers.credit_handler import handle_credit_callback
+            handled = await handle_credit_callback(update, context)
+            return handled
+        except Exception as e:
+            print(f"Błąd przy obsłudze kredytów: {e}")
+            keyboard = [[InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_credits")]]
+            await update_menu(query, "Wystąpił błąd przy sprawdzaniu kredytów. Spróbuj ponownie później.", 
+                             InlineKeyboardMarkup(keyboard))
+            return True
+    elif query.data == "menu_credits_buy":
+        try:
+            from handlers.credit_handler import handle_credit_callback
+            handled = await handle_credit_callback(update, context)
+            return handled
+        except Exception as e:
+            print(f"Błąd przy obsłudze zakupu kredytów: {e}")
+            keyboard = [[InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_credits")]]
+            await update_menu(query, "Wystąpił błąd przy zakupie kredytów. Spróbuj ponownie później.", 
+                             InlineKeyboardMarkup(keyboard))
+            return True
     
     # Przyciski szybkiego dostępu
     elif query.data == "quick_new_chat":
@@ -1467,58 +1514,53 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         return True
     elif query.data == "quick_buy_credits":
         # Przekieruj do zakupu kredytów
-        nav_path = get_text("main_menu", language, default="Menu główne") + " > " + get_text("menu_credits", language) + " > " + get_text("buy_credits_btn", language)
+        try:
+            from handlers.credit_handler import handle_credit_callback
+            # Symulujemy callback do funkcji zakupu kredytów
+            query.data = "credits_buy"
+            handled = await handle_credit_callback(update, context)
+            return handled
+        except Exception as e:
+            print(f"Błąd przy przekierowaniu do zakupu kredytów: {e}")
+            keyboard = [[InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_back_main")]]
+            await update_menu(query, "Wystąpił błąd przy zakupie kredytów. Spróbuj ponownie później.", 
+                             InlineKeyboardMarkup(keyboard))
+            return True
+
+    # Obsługa kredytów i płatności
+    try:
+        # Sprawdź, czy to callback związany z kredytami
+        if query.data.startswith("credits_") or query.data.startswith("buy_package_") or query.data == "credit_advanced_analytics":
+            from handlers.credit_handler import handle_credit_callback
+            handled = await handle_credit_callback(update, context)
+            if handled:
+                return True
+    except Exception as e:
+        print(f"Błąd w obsłudze callbacków kredytów: {e}")
         
-        # Pobierz pakiety kredytów
-        from database.credits_client import get_credit_packages
-        packages = get_credit_packages()
-        
-        packages_text = ""
-        for pkg in packages:
-            packages_text += f"*{pkg['id']}.* {pkg['name']} - *{pkg['credits']}* {get_text('credits', language)} - *{pkg['price']} PLN*\n"
-        
-        # Utwórz klawiaturę z pakietami
-        keyboard = []
-        for pkg in packages:
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"{pkg['name']} - {pkg['credits']} {get_text('credits', language)} ({pkg['price']} PLN)", 
-                    callback_data=f"buy_package_{pkg['id']}"
-                )
-            ])
-        
-        # Dodaj przycisk dla gwiazdek Telegram
-        keyboard.append([
-            InlineKeyboardButton("⭐ " + get_text("buy_with_stars", language, default="Kup za gwiazdki Telegram"), 
-                                callback_data="show_stars_options")
-        ])
-        
-        # Pasek szybkiego dostępu
-        keyboard.append([
-            InlineKeyboardButton("🆕 " + get_text("new_chat", language, default="Nowa rozmowa"), callback_data="quick_new_chat"),
-            InlineKeyboardButton("💬 " + get_text("last_chat", language, default="Ostatnia rozmowa"), callback_data="quick_last_chat")
-        ])
-        
-        # Dodaj przycisk powrotu
-        keyboard.append([
-            InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_credits")
-        ])
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        # Tekst informacyjny o zakupie kredytów z paskiem nawigacyjnym
-        message = f"*{nav_path}*\n\n" + get_text("buy_credits", language, packages=packages_text)
-        
-        await update_menu(
-            query,
-            message,
-            reply_markup,
-            parse_mode=ParseMode.MARKDOWN
-        )
-        return True
+    try:
+        # Sprawdź, czy to callback związany z płatnościami
+        if query.data.startswith("payment_") or query.data.startswith("buy_package_"):
+            from handlers.payment_handler import handle_payment_callback
+            handled = await handle_payment_callback(update, context)
+            if handled:
+                return True
+    except Exception as e:
+        print(f"Błąd w obsłudze callbacków płatności: {e}")
 
     # Jeśli dotarliśmy tutaj, oznacza to, że callback nie został obsłużony
-    return False
+    print(f"Nieobsłużony callback: {query.data}")
+    try:
+        keyboard = [[InlineKeyboardButton("⬅️ Menu główne", callback_data="menu_back_main")]]
+        await update_menu(
+            query,
+            f"Nieznany przycisk. Spróbuj ponownie później.",
+            InlineKeyboardMarkup(keyboard)
+        )
+        return True
+    except Exception as e:
+        print(f"Błąd przy wyświetlaniu komunikatu o nieobsłużonym callbacku: {e}")
+        return False
 
 async def set_user_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """

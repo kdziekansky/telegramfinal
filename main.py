@@ -71,7 +71,8 @@ from handlers.code_handler import (
 
 # Import handlerów menu
 from handlers.menu_handler import (
-    handle_menu_callback, set_user_name, get_user_language, store_menu_state
+    handle_menu_callback, set_user_name, get_user_language, store_menu_state,
+    handle_settings_callbacks  # usunięto handle_mode_selection
 )
 
 # Import handlera start
@@ -505,6 +506,10 @@ async def new_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Utwórz nową konwersację
     conversation = create_new_conversation(user_id)
     
+    # Oznacz czat jako zainicjowany
+    from utils.user_utils import mark_chat_initialized
+    mark_chat_initialized(context, user_id)
+    
     if conversation:
         await update.message.reply_text(
             get_text("newchat_command", language),
@@ -901,20 +906,33 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     
     # 2. Tryby czatu
     elif query.data.startswith("mode_"):
+        mode_id = query.data[5:]  # Usuń prefiks "mode_"
         try:
-            from handlers.menu_handler import handle_mode_callbacks
-            handled = await handle_mode_callbacks(update, context)
-            if handled:
-                return
+            # ... istniejący kod ...
+            
+            # Zapisz wybrany tryb w kontekście
+            if 'user_data' not in context.chat_data:
+                context.chat_data['user_data'] = {}
+            
+            if user_id not in context.chat_data['user_data']:
+                context.chat_data['user_data'][user_id] = {}
+            
+            context.chat_data['user_data'][user_id]['current_mode'] = mode_id
+            
+            # Dodaj tę linię aby oznaczyć czat jako zainicjowany
+            from utils.user_utils import mark_chat_initialized
+            mark_chat_initialized(context, user_id)
+            
+            # ... reszta istniejącego kodu ...
         except Exception as e:
-            print(f"Błąd w obsłudze trybów: {e}")
+            print(f"Błąd przy obsłudze wyboru trybu: {e}")
             import traceback
             traceback.print_exc()
     
     # 3. Ustawienia
     elif query.data.startswith("settings_") or query.data.startswith("model_") or query.data.startswith("start_lang_"):
         try:
-            from handlers.menu_handler import handle_settings_callbacks
+            # Używamy funkcji już zaimportowanej na poziomie globalnym
             handled = await handle_settings_callbacks(update, context)
             if handled:
                 return
@@ -1198,7 +1216,10 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         try:
             # Utwórz nową konwersację
             from database.supabase_client import create_new_conversation
+            from utils.user_utils import mark_chat_initialized
+            
             conversation = create_new_conversation(user_id)
+            mark_chat_initialized(context, user_id)  # Dodaj tę linię
             
             await query.answer(get_text("new_chat_created", language))
             

@@ -106,22 +106,24 @@ async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TY
     else:
         short_description = mode_description
     
-    # Use enhanced formatting with visual card
-    message_text = format_mode_selection(mode_name, short_description, credit_cost, model_name)
-    
-    # Add tip about mode usage if appropriate
-    if should_show_tip(user_id, context):
-        tip = get_random_tip('general')
-        message_text += f"\n\n💡 *Porada:* {tip}"
-    
-    # Dodaj przyciski powrotu do menu trybów
-    keyboard = [
-        [InlineKeyboardButton("✏️ " + get_text("start_chat", language, default="Rozpocznij rozmowę"), callback_data="quick_new_chat")],
-        [InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_chat_modes")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
     try:
+        # Use enhanced formatting with visual card
+        from utils.message_formatter_enhanced import format_mode_selection
+        message_text = format_mode_selection(mode_name, short_description, credit_cost, model_name)
+        
+        # Add tip about mode usage if appropriate
+        from utils.tips import should_show_tip, get_random_tip
+        if should_show_tip(user_id, context):
+            tip = get_random_tip('general')
+            message_text += f"\n\n💡 *Porada:* {tip}"
+        
+        # Dodaj przyciski powrotu do menu trybów
+        keyboard = [
+            [InlineKeyboardButton("✏️ " + get_text("start_chat", language, default="Rozpocznij rozmowę"), callback_data="quick_new_chat")],
+            [InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_chat_modes")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
         # Sprawdź typ wiadomości i użyj odpowiedniej metody
         if hasattr(query.message, 'caption'):
             await query.edit_message_caption(

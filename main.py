@@ -2005,6 +2005,10 @@ async def handle_image_confirmation(update: Update, context: ContextTypes.DEFAUL
             parse_mode=ParseMode.MARKDOWN
         )
 
+application.add_handler(CallbackQueryHandler(
+    handle_image_confirmation, pattern="^confirm_image_"
+))
+
 # Rejestracja handlerów komend
 application.add_handler(CommandHandler("start", start_command))
 application.add_handler(CommandHandler("help", help_command))
@@ -2017,18 +2021,14 @@ application.add_handler(CommandHandler("export", export_conversation))
 application.add_handler(CommandHandler("language", language_command))
 application.add_handler(CommandHandler("onboarding", onboarding_command))
 application.add_handler(CommandHandler("translate", translate_command))
+application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern="^menu_"))
+application.add_handler(CallbackQueryHandler(handle_mode_selection, pattern="^mode_"))
 
-application.add_handler(CallbackQueryHandler(
-    handle_image_confirmation, pattern="^confirm_image_"
-))
 
 application.add_handler(CallbackQueryHandler(
     handle_message_confirmation, 
     pattern="^confirm_message$|^cancel_operation$"
 ))
-
-application.add_handler(CallbackQueryHandler(handle_unknown_callback))
-
 
 # Handlery kredytów i płatności
 application.add_handler(CommandHandler("credits", credits_command))
@@ -2073,7 +2073,12 @@ application.add_handler(CallbackQueryHandler(
 application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
 # Handler dla callbacków (przycisków)
-application.add_handler(CallbackQueryHandler(handle_callback_query))
+application.add_handler(CallbackQueryHandler(
+    lambda update, context: handle_mode_selection(update, context, update.callback_query.data[5:]),
+    pattern="^mode_"
+))
+
+application.add_handler(CallbackQueryHandler(handle_unknown_callback))
 
 # Uruchomienie bota
 if __name__ == "__main__":

@@ -4,7 +4,6 @@ from handlers.menu_handler import get_user_language
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode, ChatAction
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from config import SUBSCRIPTION_EXPIRED_MESSAGE
 from database.supabase_client import check_active_subscription
 from utils.openai_client import analyze_document, analyze_image
 from utils.ui_elements import info_card, section_divider, feature_badge, progress_bar

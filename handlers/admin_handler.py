@@ -2,7 +2,6 @@ import re
 from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
-from config import SUBSCRIPTION_PLANS
 from database.supabase_client import create_license
 
 # Lista ID administratorów bota - tutaj należy dodać swoje ID

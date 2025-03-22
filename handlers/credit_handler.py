@@ -1,6 +1,11 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
+from utils.ui_elements import credit_status_bar, info_card, section_divider, feature_badge, progress_bar
+from utils.message_formatter_enhanced import format_credit_info, format_transaction_report
+from utils.visual_styles import style_message, create_header, create_section, create_status_indicator
+from utils.tips import get_random_tip, should_show_tip
+from utils.credit_warnings import get_low_credits_notification, get_credit_recommendation
 from config import BOT_NAME
 from utils.user_utils import get_user_language
 from utils.translations import get_text
@@ -20,39 +25,76 @@ from database.credits_client import add_stars_payment_option, get_stars_conversi
 
 async def credits_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Handle the /credits command
+    Handle the /credits command with enhanced visual presentation
     Display information about user's credits
     """
     user_id = update.effective_user.id
     language = get_user_language(context, user_id)
     credits = get_user_credits(user_id)
     
-    # Create buttons for credits
+    # Create styled header
+    message = create_header("Stan kredytów", "credits")
+    
+    # Add credits status with visual indicators
+    message += credit_status_bar(credits)
+    
+    # Get credit usage stats
+    from database.credits_client import get_user_credit_stats
+    stats = get_user_credit_stats(user_id)
+    
+    # Add basic stats section
+    if stats:
+        message += "\n\n" + create_section("Statystyki", 
+            f"▪️ Łącznie zakupiono: {stats.get('total_purchased', 0)} kredytów\n"
+            f"▪️ Średnie dzienne zużycie: {int(stats.get('avg_daily_usage', 0))} kredytów\n"
+            f"▪️ Najdroższa operacja: {stats.get('most_expensive_operation', 'brak danych')}")
+    
+    # Check for credit recommendation
+    recommendation = get_credit_recommendation(user_id, context)
+    if recommendation:
+        message += "\n\n" + create_section("Rekomendowany pakiet", 
+            f"▪️ {recommendation['package_name']} - {recommendation['credits']} kredytów\n"
+            f"▪️ Cena: {recommendation['price']} PLN\n"
+            f"▪️ {recommendation['reason']}")
+    
+    # Add a tip about saving credits if appropriate
+    if should_show_tip(user_id, context):
+        tip = get_random_tip('credits')
+        message += f"\n\n{section_divider('Porada')}\n💡 *Porada:* {tip}"
+    
+    # Check for low credits and add warning if needed
+    low_credits_warning = get_low_credits_notification(credits)
+    if low_credits_warning:
+        message += f"\n\n{section_divider('Uwaga')}\n{low_credits_warning}"
+    
+    # Create enhanced buttons for credits
     keyboard = [
         [
-            InlineKeyboardButton(get_text("buy_credits_btn", language), callback_data="menu_credits_buy"),
-            InlineKeyboardButton(get_text("payment_methods", language, default="Metody płatności"), callback_data="payment_command")
+            InlineKeyboardButton("📊 " + get_text("view_stats", language, default="Statystyki"), callback_data="credit_advanced_analytics"),
+            InlineKeyboardButton("💳 " + get_text("buy_credits_btn", language), callback_data="menu_credits_buy")
         ],
         [
-            InlineKeyboardButton(get_text("credit_stats", language), callback_data="credit_advanced_analytics"),
-            InlineKeyboardButton(get_text("subscription_manage", language, default="Subskrypcje"), callback_data="subscription_command")
+            InlineKeyboardButton("💰 " + get_text("payment_methods", language, default="Metody płatności"), callback_data="payment_command"),
+            InlineKeyboardButton("🔄 " + get_text("subscription_manage", language, default="Subskrypcje"), callback_data="subscription_command")
         ],
         [
-            InlineKeyboardButton(get_text("transaction_history", language, default="Historia transakcji"), callback_data="transactions_command")
+            InlineKeyboardButton("📜 " + get_text("transaction_history", language, default="Historia transakcji"), callback_data="transactions_command")
+        ],
+        [
+            InlineKeyboardButton("⬅️ " + get_text("back", language, default="Powrót"), callback_data="menu_back_main")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # Send credit information
     await update.message.reply_text(
-        get_text("credits_info", language, bot_name=BOT_NAME, credits=credits),
+        message,
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=reply_markup
     )
 
 async def buy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Handle the /buy command
+    Handle the /buy command with enhanced visual presentation
     Directs users to payment options
     """
     user_id = update.effective_user.id
@@ -63,9 +105,48 @@ async def buy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_stars_purchase_options(update, context)
         return
     
-    # For other purchase options, show payment methods
-    from handlers.payment_handler import payment_command
-    await payment_command(update, context)
+    # Create styled header for payment options
+    message = create_header("Zakup kredytów", "credits")
+    
+    # Add descriptive text with visual formatting
+    message += (
+        "Wybierz jedną z dostępnych metod płatności, aby kupić pakiet kredytów. "
+        "Kredyty są używane do wszystkich operacji w bocie, takich jak:\n\n"
+        "▪️ Rozmowy z różnymi modelami AI\n"
+        "▪️ Generowanie obrazów\n"
+        "▪️ Analizowanie dokumentów i zdjęć\n"
+        "▪️ Tłumaczenie tekstów\n\n"
+        "Dostępne są różne metody płatności."
+    )
+    
+    # Add section about subscription benefits
+    message += "\n\n" + create_section("Korzyści z subskrypcji", 
+        "▪️ Automatyczne odnowienie kredytów co miesiąc\n"
+        "▪️ Niższy koszt kredytów\n"
+        "▪️ Priorytetowa obsługa\n"
+        "▪️ Dodatkowe funkcje premium")
+    
+    # Create enhanced buttons for payment options
+    keyboard = [
+        [
+            InlineKeyboardButton("💳 " + get_text("credit_card", language, default="Karta płatnicza"), callback_data="payment_method_stripe"),
+            InlineKeyboardButton("🔄 " + get_text("subscription", language, default="Subskrypcja"), callback_data="payment_method_stripe_subscription")
+        ],
+        [
+            InlineKeyboardButton("⭐ " + get_text("telegram_stars", language, default="Gwiazdki Telegram"), callback_data="show_stars_options"),
+            InlineKeyboardButton("🛒 " + get_text("other_methods", language, default="Inne metody"), callback_data="payment_command")
+        ],
+        [
+            InlineKeyboardButton("⬅️ " + get_text("back", language, default="Powrót"), callback_data="menu_back_main")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        message,
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=reply_markup
+    )
 
 async def handle_credit_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -408,46 +489,82 @@ async def handle_credit_callback(update: Update, context: ContextTypes.DEFAULT_T
 
 async def credit_stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Handle the /creditstats command
+    Handle the /creditstats command with enhanced visual presentation
     Display detailed statistics on user's credits
     """
     user_id = update.effective_user.id
     language = get_user_language(context, user_id)
+    
+    # Show loading message
+    loading_message = await update.message.reply_text(
+        create_status_indicator('loading', "Analizowanie danych o kredytach...")
+    )
+    
+    # Get user stats
     stats = get_user_credit_stats(user_id)
     
+    # Create styled header
+    message = create_header("Analiza kredytów", "credits")
+    
+    # Add current credit status with visual bar
+    message += credit_status_bar(stats['credits'])
+    
     # Format the date of last purchase
-    last_purchase = get_text("none", language, default="Brak") if not stats['last_purchase'] else stats['last_purchase'].split('T')[0]
+    last_purchase = get_text("none", language, default="Brak") 
+    if stats['last_purchase']:
+        if isinstance(stats['last_purchase'], str) and 'T' in stats['last_purchase']:
+            last_purchase = stats['last_purchase'].split('T')[0]
+        else:
+            last_purchase = str(stats['last_purchase'])
     
-    # Create message with statistics
-    message = f"""
-*📊 {get_text('credit_statistics', language, default='Statystyki kredytów')}*
-
-{get_text('current_balance', language)}: *{stats['credits']}* {get_text('credits', language)}
-{get_text('total_purchased', language)}: *{stats['total_purchased']}* {get_text('credits', language)}
-{get_text('total_spent', language)}: *{stats['total_spent']}* PLN
-{get_text('last_purchase', language)}: *{last_purchase}*
-
-*📝 {get_text('usage_history', language, default='Historia użycia')} ({get_text('last_10', language, default='ostatnie 10 transakcji')}):*
-"""
+    # Add key statistics with visual formatting
+    message += "\n\n" + create_section("Kluczowe statystyki", 
+        f"▪️ Łącznie zakupiono: *{stats['total_purchased']}* kredytów\n"
+        f"▪️ Wydano łącznie: *{stats['total_spent']}* PLN\n"
+        f"▪️ Ostatni zakup: *{last_purchase}*\n"
+        f"▪️ Średnie dzienne zużycie: *{int(stats.get('avg_daily_usage', 0))}* kredytów")
     
-    if not stats['usage_history']:
-        message += f"\n{get_text('no_transaction_history', language, default='Brak historii transakcji.')}"
-    else:
-        for i, transaction in enumerate(stats['usage_history']):
-            date = transaction['date'].split('T')[0]
+    # Add transaction history
+    if stats['usage_history']:
+        message += "\n\n" + create_section("Historia transakcji", "Ostatnie operacje:")
+        
+        # Show last 5 transactions with categorized formatting
+        for i, transaction in enumerate(stats['usage_history'][:5]):
+            date = transaction['date'].split('T')[0] if isinstance(transaction['date'], str) else str(transaction['date'])
+            
             if transaction['type'] in ["add", "purchase", "subscription", "subscription_renewal"]:
-                message += f"\n{i+1}. ➕ +{transaction['amount']} {get_text('credits', language)} ({date})"
+                message += f"\n🟢 +{transaction['amount']} kr. ({date})"
                 if transaction['description']:
                     message += f" - {transaction['description']}"
             else:
-                message += f"\n{i+1}. ➖ -{transaction['amount']} {get_text('credits', language)} ({date})"
+                message += f"\n🔴 -{transaction['amount']} kr. ({date})"
                 if transaction['description']:
                     message += f" - {transaction['description']}"
+    else:
+        message += "\n\n" + create_section("Historia transakcji", "Brak historii transakcji.")
     
-    # Add button to buy credits
+    # Generate and send charts
+    try:
+        from utils.credit_analytics import generate_credit_usage_chart, generate_usage_breakdown_chart, predict_credit_depletion
+        
+        # Get depletion prediction
+        depletion_info = predict_credit_depletion(user_id)
+        if depletion_info and depletion_info['days_left']:
+            message += "\n\n" + create_section("Prognoza", 
+                f"▪️ Tempo zużycia: *{depletion_info['average_daily_usage']}* kredytów dziennie\n"
+                f"▪️ Wyczerpanie kredytów: za *{depletion_info['days_left']}* dni\n"
+                f"▪️ Przybliżona data: *{depletion_info['depletion_date']}*")
+    except Exception as e:
+        print(f"Error generating credit prediction: {e}")
+    
+    # Delete loading message
+    await loading_message.delete()
+    
+    # Add buttons to buy credits and view payment history
     keyboard = [
-        [InlineKeyboardButton(get_text("buy_more_credits", language), callback_data="menu_credits_buy")],
-        [InlineKeyboardButton(get_text("view_payment_history", language, default="Zobacz historię płatności"), callback_data="transactions_command")]
+        [InlineKeyboardButton("💰 " + get_text("buy_more_credits", language), callback_data="menu_credits_buy")],
+        [InlineKeyboardButton("📊 " + get_text("detailed_analytics", language, default="Szczegółowa analiza"), callback_data="credit_advanced_analytics")],
+        [InlineKeyboardButton("📜 " + get_text("view_payment_history", language, default="Historia płatności"), callback_data="transactions_command")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -456,7 +573,36 @@ async def credit_stats_command(update: Update, context: ContextTypes.DEFAULT_TYP
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=reply_markup
     )
-
+    
+    # Generate and send visual charts in separate messages
+    try:
+        usage_chart = generate_credit_usage_chart(user_id)
+        if usage_chart:
+            chart_caption = create_header("Wykres zużycia kredytów", "credits") + \
+                            "Wykres przedstawia historię salda kredytów oraz transakcje w ostatnim okresie."
+            
+            await update.message.reply_photo(
+                photo=usage_chart,
+                caption=chart_caption,
+                parse_mode=ParseMode.MARKDOWN
+            )
+        
+        # Add small delay to ensure messages are sent in correct order
+        await asyncio.sleep(0.5)
+        
+        breakdown_chart = generate_usage_breakdown_chart(user_id)
+        if breakdown_chart:
+            chart_caption = create_header("Rozkład wykorzystania kredytów", "credits") + \
+                            "Wykres przedstawia podział zużycia kredytów według kategorii operacji."
+            
+            await update.message.reply_photo(
+                photo=breakdown_chart,
+                caption=chart_caption,
+                parse_mode=ParseMode.MARKDOWN
+            )
+    except Exception as e:
+        print(f"Error generating credit charts: {e}")
+        
 async def credit_analytics_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Display credit usage analysis

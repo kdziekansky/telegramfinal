@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode, ChatAction
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from config import DEFAULT_MODEL, MAX_CONTEXT_MESSAGES, AVAILABLE_MODELS, CHAT_MODES
 from database.supabase_client import (
     check_active_subscription, get_active_conversation, 

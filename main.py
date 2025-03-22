@@ -14,6 +14,17 @@ import pytz
 from handlers.admin_package_handler import (
     add_package, list_packages, toggle_package, add_default_packages
 )
+from utils.ui_elements import credit_status_bar, info_card, section_divider, progress_bar
+from utils.message_formatter_enhanced import (
+    format_long_message, format_credit_info, enhance_credits_display, 
+    format_mode_selection, enhance_help_message
+)
+from utils.visual_styles import style_message, create_header, create_section, create_status_indicator
+from utils.tips import get_random_tip, should_show_tip, get_contextual_tip
+from utils.credit_warnings import (
+    check_operation_cost, get_low_credits_notification, format_credit_usage_report,
+    get_credit_recommendation
+)
 from telegram.ext import Application
 from config import TELEGRAM_TOKEN
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -522,12 +533,36 @@ async def new_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Obsługa wiadomości tekstowych od użytkownika ze strumieniowaniem odpowiedzi"""
+    """Obsługa wiadomości tekstowych od użytkownika ze strumieniowaniem odpowiedzi i ulepszonym formatowaniem"""
     user_id = update.effective_user.id
     user_message = update.message.text
     language = get_user_language(context, user_id)
     
     print(f"Otrzymano wiadomość od użytkownika {user_id}: {user_message}")
+    
+    # Sprawdź, czy użytkownik zainicjował czat
+    from utils.user_utils import is_chat_initialized
+    if not is_chat_initialized(context, user_id):
+        # Enhanced UI for chat initialization prompt
+        message = create_header("Rozpocznij nowy czat", "chat")
+        message += (
+            "Aby rozpocząć używanie AI, najpierw utwórz nowy czat używając /newchat "
+            "lub przycisku poniżej. Możesz również wybrać tryb czatu z menu."
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("🆕 " + get_text("start_new_chat", language, default="Rozpocznij nowy czat"), callback_data="quick_new_chat")],
+            [InlineKeyboardButton("📋 " + get_text("select_mode", language, default="Wybierz tryb czatu"), callback_data="menu_section_chat_modes")],
+            [InlineKeyboardButton("❓ " + get_text("menu_help", language, default="Pomoc"), callback_data="menu_help")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            message,
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=reply_markup
+        )
+        return
     
     # Określ tryb i koszt kredytów
     current_mode = "no_mode"
@@ -541,12 +576,70 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     print(f"Tryb: {current_mode}, koszt kredytów: {credit_cost}")
     
-    # Sprawdź, czy użytkownik ma wystarczającą liczbę kredytów
-    has_credits = check_user_credits(user_id, credit_cost)
-    print(f"Czy użytkownik ma wystarczająco kredytów: {has_credits}")
+    # Get current credits
+    credits = get_user_credits(user_id)
     
-    if not has_credits:
-        await update.message.reply_text(get_text("subscription_expired", language))
+    # Sprawdź, czy użytkownik ma wystarczającą liczbę kredytów
+    if not check_user_credits(user_id, credit_cost):
+        # Enhanced credit warning with visual indicators
+        warning_message = create_header("Niewystarczające kredyty", "warning")
+        warning_message += (
+            f"Nie masz wystarczającej liczby kredytów, aby wysłać wiadomość.\n\n"
+            f"▪️ Koszt operacji: *{credit_cost}* kredytów\n"
+            f"▪️ Twój stan kredytów: *{credits}* kredytów\n\n"
+            f"Potrzebujesz jeszcze *{credit_cost - credits}* kredytów."
+        )
+        
+        # Add credit recommendation if available
+        recommendation = get_credit_recommendation(user_id, context)
+        if recommendation:
+            warning_message += "\n\n" + create_section("Rekomendowany pakiet", 
+                f"▪️ {recommendation['package_name']} - {recommendation['credits']} kredytów\n"
+                f"▪️ Cena: {recommendation['price']} PLN\n"
+                f"▪️ {recommendation['reason']}")
+        
+        keyboard = [
+            [InlineKeyboardButton("💳 " + get_text("buy_credits_btn", language, default="Kup kredyty"), callback_data="menu_credits_buy")],
+            [InlineKeyboardButton("⬅️ " + get_text("menu_back_main", language, default="Menu główne"), callback_data="menu_back_main")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            warning_message,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.MARKDOWN
+        )
+        return
+    
+    # Check operation cost and show warning if needed
+    cost_warning = check_operation_cost(user_id, credit_cost, credits, "Wiadomość AI", context)
+    if cost_warning['require_confirmation'] and cost_warning['level'] in ['warning', 'critical']:
+        # Show warning and ask for confirmation
+        warning_message = create_header("Potwierdzenie kosztu", "warning")
+        warning_message += cost_warning['message'] + "\n\nCzy chcesz kontynuować?"
+        
+        # Create confirmation buttons
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Tak, wyślij", callback_data=f"confirm_message"),
+                InlineKeyboardButton("❌ Anuluj", callback_data="cancel_operation")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Store message in context for later use
+        if 'user_data' not in context.chat_data:
+            context.chat_data['user_data'] = {}
+        if user_id not in context.chat_data['user_data']:
+            context.chat_data['user_data'][user_id] = {}
+            
+        context.chat_data['user_data'][user_id]['pending_message'] = user_message
+        
+        await update.message.reply_text(
+            warning_message,
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=reply_markup
+        )
         return
     
     # Pobierz lub utwórz aktywną konwersację
@@ -904,30 +997,25 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             import traceback
             traceback.print_exc()
     
-    # 2. Tryby czatu
+    # 2. Tryby czatu - POPRAWIONE
     elif query.data.startswith("mode_"):
-        mode_id = query.data[5:]  # Usuń prefiks "mode_"
         try:
-            # ... istniejący kod ...
-            
-            # Zapisz wybrany tryb w kontekście
-            if 'user_data' not in context.chat_data:
-                context.chat_data['user_data'] = {}
-            
-            if user_id not in context.chat_data['user_data']:
-                context.chat_data['user_data'][user_id] = {}
-            
-            context.chat_data['user_data'][user_id]['current_mode'] = mode_id
-            
-            # Dodaj tę linię aby oznaczyć czat jako zainicjowany
-            from utils.user_utils import mark_chat_initialized
-            mark_chat_initialized(context, user_id)
-            
-            # ... reszta istniejącego kodu ...
+            from handlers.mode_handler import handle_mode_selection
+            await handle_mode_selection(update, context)
+            return
         except Exception as e:
             print(f"Błąd przy obsłudze wyboru trybu: {e}")
             import traceback
             traceback.print_exc()
+            # Spróbuj wyświetlić informację o błędzie
+            try:
+                keyboard = [[InlineKeyboardButton("⬅️ Menu główne", callback_data="menu_back_main")]]
+                await query.edit_message_text(
+                    text=f"Wystąpił błąd podczas wyboru trybu: {str(e)[:100]}...\nSpróbuj ponownie później.",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+            except:
+                pass
     
     # 3. Ustawienia
     elif query.data.startswith("settings_") or query.data.startswith("model_") or query.data.startswith("start_lang_"):
@@ -1295,6 +1383,628 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     except Exception as e:
         print(f"Błąd przy wyświetlaniu komunikatu o nieobsłużonym callbacku: {e}")
 
+async def handle_document_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handles confirmation of document operations when cost warning was shown
+    """
+    query = update.callback_query
+    user_id = query.from_user.id
+    language = get_user_language(context, user_id)
+    
+    await query.answer()
+    
+    if query.data.startswith("confirm_doc_analysis_"):
+        # Extract document_id from callback data
+        document_id = query.data[20:]
+        
+        # Check if document info is in context
+        if ('user_data' not in context.chat_data or 
+            user_id not in context.chat_data['user_data'] or
+            'last_document_name' not in context.chat_data['user_data'][user_id]):
+            
+            await query.edit_message_text(
+                create_header("Błąd operacji", "error") +
+                "Nie znaleziono informacji o dokumencie. Spróbuj wysłać go ponownie.",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
+        
+        file_name = context.chat_data['user_data'][user_id]['last_document_name']
+        
+        # Inform the user that analysis has started
+        await query.edit_message_text(
+            create_status_indicator('loading', "Analizowanie dokumentu") + "\n\n" +
+            f"*Dokument:* {file_name}",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        
+        # Get operation cost
+        credit_cost = CREDIT_COSTS["document"]
+        
+        # Check if the user still has enough credits
+        credits = get_user_credits(user_id)
+        if not check_user_credits(user_id, credit_cost):
+            await query.edit_message_text(
+                create_header("Brak wystarczających kredytów", "error") +
+                "W międzyczasie twój stan kredytów zmienił się i nie masz już wystarczającej liczby kredytów.",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
+        
+        # Store credits before the operation for reporting
+        credits_before = credits
+        
+        # Pobierz plik
+        try:
+            file = await context.bot.get_file(document_id)
+            file_bytes = await file.download_as_bytearray()
+            
+            # Analyze document
+            analysis = await analyze_document(file_bytes, file_name)
+            
+            # Deduct credits
+            deduct_user_credits(user_id, credit_cost, f"Analiza dokumentu: {file_name}")
+            
+            # Get credits after the operation
+            credits_after = get_user_credits(user_id)
+            
+            # Prepare result message with styled header
+            result_message = create_header(f"Analiza dokumentu: {file_name}", "document")
+            
+            # Add an excerpt from the analysis (first 3000 characters)
+            analysis_excerpt = analysis[:3000]
+            if len(analysis) > 3000:
+                analysis_excerpt += "...\n\n(Analiza została skrócona ze względu na długość)"
+            
+            result_message += analysis_excerpt
+            
+            # Add credit usage report
+            usage_report = format_credit_usage_report(
+                "Analiza dokumentu", 
+                credit_cost, 
+                credits_before, 
+                credits_after
+            )
+            result_message += f"\n\n{usage_report}"
+            
+            # Add a tip if appropriate
+            if should_show_tip(user_id, context):
+                tip = get_random_tip('document')
+                result_message += f"\n\n💡 *Porada:* {tip}"
+            
+            # Update the message with analysis results
+            await query.edit_message_text(
+                result_message,
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except Exception as e:
+            print(f"Error analyzing document: {e}")
+            await query.edit_message_text(
+                create_header("Błąd analizy", "error") +
+                "Wystąpił błąd podczas analizowania dokumentu. Spróbuj ponownie później.",
+                parse_mode=ParseMode.MARKDOWN
+            )
+
+async def handle_photo_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handles confirmation of photo operations when cost warning was shown
+    """
+    query = update.callback_query
+    user_id = query.from_user.id
+    language = get_user_language(context, user_id)
+    
+    await query.answer()
+    
+    if query.data.startswith("confirm_photo_"):
+        # Extract mode and photo_id from callback data
+        parts = query.data.split("_")
+        if len(parts) >= 4:
+            mode = parts[2]
+            photo_id = "_".join(parts[3:])
+            
+            # Check if photo info is in context
+            if ('user_data' not in context.chat_data or 
+                user_id not in context.chat_data['user_data'] or
+                'last_photo_id' not in context.chat_data['user_data'][user_id]):
+                
+                await query.edit_message_text(
+                    create_header("Błąd operacji", "error") +
+                    "Nie znaleziono informacji o zdjęciu. Spróbuj wysłać je ponownie.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                return
+            
+            # Get operation name and message
+            if mode == "translate":
+                operation_name = "Tłumaczenie tekstu ze zdjęcia"
+                status_message = create_status_indicator('loading', "Tłumaczenie tekstu ze zdjęcia")
+            else:
+                operation_name = "Analiza zdjęcia"
+                status_message = create_status_indicator('loading', "Analizowanie zdjęcia")
+            
+            # Inform the user that the operation has started
+            await query.edit_message_text(
+                status_message,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            
+            # Get operation cost
+            credit_cost = CREDIT_COSTS["photo"]
+            
+            # Check if the user still has enough credits
+            credits = get_user_credits(user_id)
+            if not check_user_credits(user_id, credit_cost):
+                await query.edit_message_text(
+                    create_header("Brak wystarczających kredytów", "error") +
+                    "W międzyczasie twój stan kredytów zmienił się i nie masz już wystarczającej liczby kredytów.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                return
+            
+            # Store credits before the operation for reporting
+            credits_before = credits
+            
+            try:
+                # Get the photo
+                file = await context.bot.get_file(photo_id)
+                file_bytes = await file.download_as_bytearray()
+                
+                # Analyze or translate the photo
+                result = await analyze_image(file_bytes, f"photo_{photo_id}.jpg", mode=mode)
+                
+                # Deduct credits
+                deduct_user_credits(user_id, credit_cost, operation_name)
+                
+                # Get credits after the operation
+                credits_after = get_user_credits(user_id)
+                
+                # Prepare result message with styled header
+                if mode == "translate":
+                    result_message = create_header("Tłumaczenie tekstu ze zdjęcia", "translation")
+                else:
+                    result_message = create_header("Analiza zdjęcia", "analysis")
+                
+                # Add the result
+                result_message += result
+                
+                # Add credit usage report
+                usage_report = format_credit_usage_report(
+                    operation_name, 
+                    credit_cost, 
+                    credits_before, 
+                    credits_after
+                )
+                result_message += f"\n\n{usage_report}"
+                
+                # Add a tip if appropriate
+                if should_show_tip(user_id, context):
+                    tip = get_random_tip('document')
+                    result_message += f"\n\n💡 *Porada:* {tip}"
+                
+                # Update the message with results
+                await query.edit_message_text(
+                    result_message,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            except Exception as e:
+                print(f"Error processing photo: {e}")
+                await query.edit_message_text(
+                    create_header("Błąd operacji", "error") +
+                    f"Wystąpił błąd podczas {operation_name.lower()}. Spróbuj ponownie później.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+    
+    elif query.data == "cancel_operation":
+        # User canceled the operation
+        await query.edit_message_text(
+            create_header("Operacja anulowana", "info") +
+            "Operacja została anulowana.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+# Dodaj dedykowaną funkcję tylko dla tego przycisku
+async def handle_buy_credits(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Obsługuje przycisk zakupu kredytów"""
+    query = update.callback_query
+    await query.answer()
+    
+    # Pokaż podstawowe menu zakupu
+    message = "🛒 *Zakup kredytów*\n\nWybierz pakiet kredytów:"
+    
+    # Pobierz pakiety
+    from config import CREDIT_PACKAGES
+    
+    # Stwórz przyciski dla pakietów
+    keyboard = []
+    for pkg in CREDIT_PACKAGES:
+        keyboard.append([
+            InlineKeyboardButton(
+                f"{pkg['name']} - {pkg['credits']} kredytów ({pkg['price']} PLN)", 
+                callback_data=f"buy_package_{pkg['id']}"
+            )
+        ])
+    
+    # Dodaj przycisk powrotu
+    keyboard.append([
+        InlineKeyboardButton("⬅️ Powrót", callback_data="menu_back_main")
+    ])
+    
+    try:
+        await query.edit_message_text(
+            text=message,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode=ParseMode.MARKDOWN
+        )
+    except Exception as e:
+        print(f"Error updating message: {e}")
+
+# Zarejestruj ten handler przed ogólnym handlerem
+application.add_handler(CallbackQueryHandler(
+    handle_buy_credits, 
+    pattern="^menu_credits_buy$"
+))
+
+async def handle_buy_credits_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Obsługuje wszystkie przyciski zakupu kredytów"""
+    query = update.callback_query
+    await query.answer()
+    
+    # Przekieruj na stronę zakupu kredytów
+    await buy_command(update, context)
+
+async def handle_unknown_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Obsługuje wszystkie nieznane callbacki"""
+    query = update.callback_query
+    await query.answer("Ta funkcja jest w trakcie implementacji")
+    
+    # Logowanie nieznanego callbacka
+    print(f"Nieobsłużony callback: {query.data}")
+    
+    # Informacja dla użytkownika
+    try:
+        await query.edit_message_text(
+            f"Funkcja '{query.data}' jest w trakcie implementacji.\n\nWróć do menu głównego i spróbuj innej opcji.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("⬅️ Powrót do menu", callback_data="menu_back_main")
+            ]])
+        )
+    except Exception as e:
+        print(f"Błąd przy edycji wiadomości: {e}")
+
+async def handle_message_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handles confirmation of AI message when cost warning was shown
+    """
+    query = update.callback_query
+    user_id = query.from_user.id
+    language = get_user_language(context, user_id)
+    
+    await query.answer()
+    
+    if query.data == "confirm_message":
+        # Check if there's a pending message
+        if ('user_data' not in context.chat_data or 
+            user_id not in context.chat_data['user_data'] or 
+            'pending_message' not in context.chat_data['user_data'][user_id]):
+            
+            await query.edit_message_text(
+                create_header("Błąd operacji", "error") +
+                "Nie znaleziono oczekującej wiadomości. Spróbuj ponownie.",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
+        
+        # Get the pending message
+        user_message = context.chat_data['user_data'][user_id]['pending_message']
+        
+        # Delete confirmation message to avoid clutter
+        await query.message.delete()
+        
+        # Update loading status
+        status_message = await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=create_status_indicator('loading', "Generowanie odpowiedzi"),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        
+        # Determine mode and credit cost (same logic as in message_handler)
+        current_mode = "no_mode"
+        credit_cost = 1
+        
+        if 'user_data' in context.chat_data and user_id in context.chat_data['user_data']:
+            user_data = context.chat_data['user_data'][user_id]
+            if 'current_mode' in user_data and user_data['current_mode'] in CHAT_MODES:
+                current_mode = user_data['current_mode']
+                credit_cost = CHAT_MODES[current_mode]["credit_cost"]
+        
+        # Get or create conversation
+        try:
+            conversation = get_active_conversation(user_id)
+            conversation_id = conversation['id']
+        except Exception as e:
+            print(f"Błąd przy pobieraniu konwersacji: {e}")
+            await status_message.edit_text(
+                create_header("Błąd konwersacji", "error") +
+                "Wystąpił błąd przy pobieraniu konwersacji. Spróbuj ponownie.",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
+        
+        # Save user message to database
+        try:
+            save_message(conversation_id, user_id, user_message, is_from_user=True)
+        except Exception as e:
+            print(f"Błąd przy zapisie wiadomości użytkownika: {e}")
+        
+        # Get conversation history
+        try:
+            history = get_conversation_history(conversation_id, limit=MAX_CONTEXT_MESSAGES)
+        except Exception as e:
+            print(f"Błąd przy pobieraniu historii: {e}")
+            history = []
+        
+        # Determine model to use
+        model_to_use = CHAT_MODES[current_mode].get("model", DEFAULT_MODEL)
+        
+        # If user selected a specific model, use it
+        if 'user_data' in context.chat_data and user_id in context.chat_data['user_data']:
+            user_data = context.chat_data['user_data'][user_id]
+            if 'current_model' in user_data:
+                model_to_use = user_data['current_model']
+                # Update credit cost based on model
+                credit_cost = CREDIT_COSTS["message"].get(model_to_use, CREDIT_COSTS["message"]["default"])
+        
+        # Prepare system prompt from selected mode
+        system_prompt = CHAT_MODES[current_mode]["prompt"]
+        
+        # Prepare messages for OpenAI API
+        messages = prepare_messages_from_history(history, user_message, system_prompt)
+        
+        # Store credits before operation
+        credits_before = get_user_credits(user_id)
+        
+        # Generate response
+        full_response = ""
+        buffer = ""
+        last_update = datetime.datetime.now().timestamp()
+        
+        try:
+            # Update message with starting response
+            response_message = await status_message.edit_text(
+                create_header("Odpowiedź AI", "chat"),
+                parse_mode=ParseMode.MARKDOWN
+            )
+            
+            # Stream the response
+            async for chunk in chat_completion_stream(messages, model=model_to_use):
+                full_response += chunk
+                buffer += chunk
+                
+                # Update message periodically
+                current_time = datetime.datetime.now().timestamp()
+                if current_time - last_update >= 1.0 or len(buffer) > 100:
+                    try:
+                        await response_message.edit_text(
+                            create_header("Odpowiedź AI", "chat") + full_response + "▌",
+                            parse_mode=ParseMode.MARKDOWN
+                        )
+                        buffer = ""
+                        last_update = current_time
+                    except Exception as e:
+                        print(f"Błąd przy aktualizacji wiadomości: {e}")
+            
+            # Final update without cursor
+            try:
+                await response_message.edit_text(
+                    create_header("Odpowiedź AI", "chat") + full_response,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            except Exception as e:
+                print(f"Błąd formatowania Markdown: {e}")
+                await response_message.edit_text(
+                    create_header("Odpowiedź AI", "chat") + full_response,
+                    parse_mode=None
+                )
+            
+            # Save response to database
+            save_message(conversation_id, user_id, full_response, is_from_user=False, model_used=model_to_use)
+            
+            # Deduct credits
+            deduct_user_credits(user_id, credit_cost, 
+                               get_text("message_model", language, model=model_to_use, default=f"Wiadomość ({model_to_use})"))
+            
+            # Get credits after operation
+            credits_after = get_user_credits(user_id)
+            
+            # Display credit usage report
+            usage_report = format_credit_usage_report(
+                "Wiadomość AI", 
+                credit_cost, 
+                credits_before, 
+                credits_after
+            )
+            
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=usage_report,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            
+            # Check for low credits
+            if credits_after < 5:
+                low_credits_warning = create_header("Niski stan kredytów", "warning")
+                low_credits_warning += f"Pozostało Ci tylko *{credits_after}* kredytów. Rozważ zakup pakietu, aby kontynuować korzystanie z bota."
+                
+                # Add buttons to buy credits
+                keyboard = [[InlineKeyboardButton("💳 " + get_text("buy_credits_btn", language), callback_data="menu_credits_buy")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=low_credits_warning,
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=reply_markup
+                )
+            
+            # Add tip if appropriate
+            tip = get_contextual_tip('chat', context, user_id)
+            if tip:
+                tip_message = f"💡 *Porada:* {tip}"
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=tip_message,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            
+            # Increment message counter
+            increment_messages_used(user_id)
+            
+        except Exception as e:
+            print(f"Wystąpił błąd podczas generowania odpowiedzi: {e}")
+            await status_message.edit_text(
+                create_header("Błąd odpowiedzi", "error") +
+                get_text("response_error", language, error=str(e)),
+                parse_mode=ParseMode.MARKDOWN
+            )
+    
+    elif query.data == "cancel_operation":
+        # User canceled the message
+        await query.edit_message_text(
+            create_header("Operacja anulowana", "info") +
+            "Wysłanie wiadomości zostało anulowane.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+async def handle_back_to_main(update, context):
+    """Obsługuje powrót do głównego menu"""
+    query = update.callback_query
+    user_id = query.from_user.id
+    language = get_user_language(context, user_id)
+    
+    # Pobierz tekst powitalny
+    welcome_text = "Menu główne"
+    
+    # Utwórz klawiaturę menu
+    keyboard = [
+        [
+            InlineKeyboardButton("💬 Tryby czatu", callback_data="menu_section_chat_modes"),
+            InlineKeyboardButton("🖼️ Generowanie obrazów", callback_data="menu_image_generate")
+        ],
+        [
+            InlineKeyboardButton("💰 Kredyty", callback_data="menu_section_credits"),
+            InlineKeyboardButton("📚 Historia", callback_data="menu_section_history")
+        ],
+        [
+            InlineKeyboardButton("⚙️ Ustawienia", callback_data="menu_section_settings"),
+            InlineKeyboardButton("❓ Pomoc", callback_data="menu_help")
+        ]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    # Uproszczona metoda - zawsze próbuje edytować tekst zamiast bardziej złożonej logiki
+    try:
+        await query.edit_message_text(
+            text=welcome_text,
+            reply_markup=reply_markup
+        )
+        return True
+    except Exception as e:
+        print(f"Error updating message: {e}")
+        return False
+
+async def handle_image_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handles confirmation of image generation when cost warning was shown
+    """
+    query = update.callback_query
+    user_id = query.from_user.id
+    language = get_user_language(context, user_id)
+    
+    await query.answer()
+    
+    if query.data.startswith("confirm_image_"):
+        # Extract prompt from callback data
+        prompt = query.data[14:].replace('_', ' ')
+        
+        # Inform the user that image generation has started
+        await query.edit_message_text(
+            create_status_indicator('loading', "Generowanie obrazu") + "\n\n" +
+            f"*Prompt:* {prompt}",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        
+        # Get quality and cost
+        quality = "standard"
+        credit_cost = CREDIT_COSTS["image"][quality]
+        
+        # Check if the user still has enough credits
+        credits = get_user_credits(user_id)
+        if not check_user_credits(user_id, credit_cost):
+            await query.edit_message_text(
+                create_header("Brak wystarczających kredytów", "error") +
+                "W międzyczasie twój stan kredytów zmienił się i nie masz już wystarczającej liczby kredytów.",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
+        
+        # Store credits before the operation for reporting
+        credits_before = credits
+        
+        # Generate image
+        image_url = await generate_image_dall_e(prompt)
+        
+        # Deduct credits
+        deduct_user_credits(user_id, credit_cost, get_text("image_generation", language, default="Generowanie obrazu"))
+        
+        # Get credits after the operation
+        credits_after = get_user_credits(user_id)
+        
+        if image_url:
+            # Prepare a caption with usage report
+            caption = create_header("Wygenerowany obraz", "image")
+            caption += f"*Prompt:* {prompt}\n"
+            
+            # Add credit usage report
+            usage_report = format_credit_usage_report(
+                "Generowanie obrazu", 
+                credit_cost, 
+                credits_before, 
+                credits_after
+            )
+            caption += f"\n{usage_report}"
+            
+            # Add a tip if appropriate
+            if should_show_tip(user_id, context):
+                tip = get_random_tip('image')
+                caption += f"\n\n💡 *Porada:* {tip}"
+            
+            # Delete the confirmation message
+            await query.message.delete()
+            
+            # Send the image
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=image_url,
+                caption=caption,
+                parse_mode=ParseMode.MARKDOWN
+            )
+        else:
+            # Update with error message
+            await query.edit_message_text(
+                create_header("Błąd generowania", "error") +
+                get_text("image_generation_error", language, default="Przepraszam, wystąpił błąd podczas generowania obrazu. Spróbuj ponownie z innym opisem."),
+                parse_mode=ParseMode.MARKDOWN
+            )
+    
+    elif query.data == "cancel_operation":
+        # User canceled the operation
+        await query.edit_message_text(
+            create_header("Operacja anulowana", "info") +
+            "Generowanie obrazu zostało anulowane.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+
 # Rejestracja handlerów komend
 application.add_handler(CommandHandler("start", start_command))
 application.add_handler(CommandHandler("help", help_command))
@@ -1308,6 +2018,18 @@ application.add_handler(CommandHandler("language", language_command))
 application.add_handler(CommandHandler("onboarding", onboarding_command))
 application.add_handler(CommandHandler("translate", translate_command))
 
+application.add_handler(CallbackQueryHandler(
+    handle_image_confirmation, pattern="^confirm_image_"
+))
+
+application.add_handler(CallbackQueryHandler(
+    handle_message_confirmation, 
+    pattern="^confirm_message$|^cancel_operation$"
+))
+
+application.add_handler(CallbackQueryHandler(handle_unknown_callback))
+
+
 # Handlery kredytów i płatności
 application.add_handler(CommandHandler("credits", credits_command))
 application.add_handler(CommandHandler("buy", buy_command))
@@ -1315,6 +2037,15 @@ application.add_handler(CommandHandler("creditstats", credit_stats_command))
 application.add_handler(CommandHandler("payment", payment_command))
 application.add_handler(CommandHandler("subscription", subscription_command))
 application.add_handler(CommandHandler("code", code_command))
+
+# Handle image and document confirmations
+application.add_handler(CallbackQueryHandler(
+    handle_image_confirmation, pattern="^confirm_image_"
+))
+application.add_handler(CallbackQueryHandler(
+    lambda update, context: handle_document_confirmation(update, context), 
+    pattern="^confirm_doc_"
+))
 
 # Handlery dla administratorów
 application.add_handler(CommandHandler("addpackage", add_package))
@@ -1328,6 +2059,15 @@ application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_
 
 # Handler dokumentów
 application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+
+application.add_handler(CallbackQueryHandler(
+    handle_photo_confirmation, 
+    pattern="^confirm_photo_|^cancel_operation$"
+))
+
+application.add_handler(CallbackQueryHandler(
+    handle_credit_callback, pattern="^(credits_|menu_credits_|buy_)"
+))
 
 # Handler zdjęć
 application.add_handler(MessageHandler(filters.PHOTO, handle_photo))

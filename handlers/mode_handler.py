@@ -4,9 +4,14 @@ from telegram.constants import ParseMode
 from config import CHAT_MODES
 from utils.translations import get_text
 from database.credits_client import get_user_credits
-from handlers.menu_handler import get_user_language
 from utils.user_utils import mark_chat_initialized
+from database.supabase_client import create_new_conversation
 
+def get_user_language(context, user_id):
+    """Pomocnicza funkcja do pobierania języka użytkownika"""
+    if 'user_data' in context.chat_data and user_id in context.chat_data['user_data'] and 'language' in context.chat_data['user_data'][user_id]:
+        return context.chat_data['user_data'][user_id]['language']
+    return "pl"  # Domyślny język
 
 async def show_modes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Pokazuje dostępne tryby czatu"""
@@ -36,17 +41,20 @@ async def show_modes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         ])
     
+    # Dodaj przycisk powrotu do menu
+    keyboard.append([
+        InlineKeyboardButton(get_text("back", language, default="Powrót"), callback_data="menu_back_main")
+    ])
+    
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        get_text("select_chat_mode", language),
+        get_text("select_chat_mode", language, default="Wybierz tryb czatu:"),
         reply_markup=reply_markup
     )
 
-
-# Poprawiona funkcja handle_mode_selection
 async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, mode_id):
-    """Obsługa wyboru trybu czatu"""
+    """Obsługuje wybór trybu czatu z ulepszoną wizualizacją"""
     query = update.callback_query
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
@@ -85,27 +93,31 @@ async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TY
     if "model" in CHAT_MODES[mode_id]:
         context.chat_data['user_data'][user_id]['current_model'] = CHAT_MODES[mode_id]["model"]
     
-        # Pobierz przetłumaczoną nazwę trybu i inne informacje
+    # Pobierz przetłumaczoną nazwę trybu i inne informacje
     mode_name = get_text(f"chat_mode_{mode_id}", language, default=CHAT_MODES[mode_id]["name"])
     prompt_key = f"prompt_{mode_id}"
     mode_description = get_text(prompt_key, language, default=CHAT_MODES[mode_id]["prompt"])
     credit_cost = CHAT_MODES[mode_id]["credit_cost"]
+    model_name = AVAILABLE_MODELS.get(CHAT_MODES[mode_id].get("model", DEFAULT_MODEL), "Model standardowy")
     
     # Skróć opis, jeśli jest zbyt długi
-    if len(mode_description) > 100:
-        short_description = mode_description[:97] + "..."
+    if len(mode_description) > 200:
+        short_description = mode_description[:197] + "..."
     else:
         short_description = mode_description
     
-    # Używaj tłumaczeń zamiast hardcodowanych tekstów
-    message_text = get_text("mode_selected_message", language, 
-                          mode_name=mode_name,
-                          credit_cost=credit_cost,
-                          description=short_description)
+    # Use enhanced formatting with visual card
+    message_text = format_mode_selection(mode_name, short_description, credit_cost, model_name)
+    
+    # Add tip about mode usage if appropriate
+    if should_show_tip(user_id, context):
+        tip = get_random_tip('general')
+        message_text += f"\n\n💡 *Porada:* {tip}"
     
     # Dodaj przyciski powrotu do menu trybów
     keyboard = [
-        [InlineKeyboardButton(get_text("back", language), callback_data="menu_section_chat_modes")]
+        [InlineKeyboardButton("✏️ " + get_text("start_chat", language, default="Rozpocznij rozmowę"), callback_data="quick_new_chat")],
+        [InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_chat_modes")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -129,12 +141,12 @@ async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TY
             # Bez formatowania Markdown
             if hasattr(query.message, 'caption'):
                 await query.edit_message_caption(
-                    caption=message_text,
+                    caption=message_text.replace('*', ''),
                     reply_markup=reply_markup
                 )
             else:
                 await query.edit_message_text(
-                    text=message_text,
+                    text=message_text.replace('*', ''),
                     reply_markup=reply_markup
                 )
         except Exception as e2:
@@ -143,3 +155,7 @@ async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TY
     # Utwórz nową konwersację dla wybranego trybu
     from database.supabase_client import create_new_conversation
     create_new_conversation(user_id)
+    
+    # Mark chat as initialized
+    from utils.user_utils import mark_chat_initialized
+    mark_chat_initialized(context, user_id)

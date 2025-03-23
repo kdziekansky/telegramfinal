@@ -2,66 +2,10 @@ import re
 from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
-from config import SUBSCRIPTION_PLANS
 from database.supabase_client import create_license
 
 # Lista ID administratorów bota - tutaj należy dodać swoje ID
 from config import ADMIN_USER_IDS  # Zastąp swoim ID użytkownika Telegram
-
-async def add_license(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Dodaje nową licencję do bazy danych
-    Tylko dla administratorów
-    Użycie: /addlicense [30|60|90] [ilość]
-    """
-    user_id = update.effective_user.id
-    
-    # Sprawdź, czy użytkownik jest administratorem
-    if user_id not in ADMIN_USER_IDS:
-        await update.message.reply_text("Nie masz uprawnień do tej komendy.")
-        return
-    
-    # Sprawdź, czy podano argumenty
-    if not context.args or len(context.args) < 2:
-        await update.message.reply_text("Użycie: /addlicense [30|60|90] [ilość]")
-        return
-    
-    try:
-        duration = int(context.args[0])
-        amount = int(context.args[1])
-    except ValueError:
-        await update.message.reply_text("Błędne argumenty. Użycie: /addlicense [30|60|90] [ilość]")
-        return
-    
-    # Sprawdź, czy czas trwania jest poprawny
-    if duration not in SUBSCRIPTION_PLANS:
-        valid_durations = ", ".join(str(d) for d in SUBSCRIPTION_PLANS.keys())
-        await update.message.reply_text(f"Nieprawidłowy czas trwania. Dostępne opcje: {valid_durations}")
-        return
-    
-    # Sprawdź, czy ilość jest poprawna
-    if amount <= 0 or amount > 100:
-        await update.message.reply_text("Ilość musi być liczbą dodatnią, nie większą niż 100.")
-        return
-    
-    # Generuj licencje
-    price = SUBSCRIPTION_PLANS[duration]["price"]
-    licenses = []
-    
-    for _ in range(amount):
-        license = create_license(duration, price)
-        if license:
-            licenses.append(license["license_key"])
-    
-    # Wyślij wygenerowane licencje
-    if licenses:
-        licenses_str = "\n".join(licenses)
-        await update.message.reply_text(
-            f"Wygenerowano {len(licenses)} licencji na {duration} dni:\n\n{licenses_str}",
-            parse_mode=ParseMode.MARKDOWN
-        )
-    else:
-        await update.message.reply_text("Wystąpił błąd podczas generowania licencji.")
 
 async def get_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """

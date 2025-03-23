@@ -180,22 +180,19 @@ translations = {
         
         # Komunikaty onboardingu
         "onboarding_welcome": "Witaj w przewodniku po funkcjach bota {bot_name}! 🚀\n\nW tym przewodniku poznasz wszystkie możliwości, które oferuje nasz bot. Każda wiadomość wprowadzi Cię w inną funkcjonalność.\n\nGotowy, by rozpocząć?",
-        "onboarding_chat": "💬 **Czat z AI**\n\nMożesz prowadzić rozmowy z różnymi modelami AI:\n• GPT-3.5 Turbo (szybki i ekonomiczny)\n• GPT-4o (inteligentny i wszechstronny)\n• GPT-4 (zaawansowany ekspert)\n\nPo prostu wyślij wiadomość, a bot odpowie!\n\n**Dostępne komendy:**\n/models - Wybierz model AI\n/newchat - Rozpocznij nową rozmowę",
-        "onboarding_modes": "🔄 **Tryby czatu**\n\nBot może działać w różnych trybach, dostosowanych do Twoich potrzeb:\n• Asystent - pomoc ogólna\n• Programista - pomoc z kodem\n• Kreatywny pisarz - tworzenie treści\ni wiele innych!\n\n**Dostępne komendy:**\n/mode - Wybierz tryb czatu",
-        "onboarding_images": "🖼️ **Generowanie obrazów**\n\nMożesz tworzyć unikalne obrazy na podstawie Twoich opisów za pomocą modelu DALL-E 3.\n\n**Dostępne komendy:**\n/image [opis] - Wygeneruj obraz na podstawie opisu",
-        "onboarding_analysis": "🔍 **Analiza dokumentów i zdjęć**\n\nBot może analizować przesłane przez Ciebie dokumenty i zdjęcia.\n\nWystarczy przesłać plik lub zdjęcie, a bot dokona ich analizy. Obsługiwane są różne formaty plików.",
-        "onboarding_credits": "💰 **System kredytów**\n\nKorzystanie z bota wymaga kredytów. Różne operacje kosztują różną liczbę kredytów:\n• Standardowa wiadomość: 1 kredyt\n• Premium wiadomość (GPT-4o): 3 kredyty\n• Ekspercka wiadomość (GPT-4): 5 kredytów\n• Obraz DALL-E: 10-15 kredytów\n• Analiza dokumentu: 5 kredytów\n• Analiza zdjęcia: 8 kredytów\n• Tłumaczenie: 8 kredytów\n\nMożesz kupić kredyty na kilka sposobów:\n• Komendą /buy - zakup za PLN\n• Komendą /buy stars - zakup za gwiazdki Telegram\n\n**Dostępne komendy:**\n/credits - Sprawdź stan kredytów\n/buy - Kup pakiet kredytów\n/creditstats - Analiza wykorzystania kredytów z wykresami\n/code - Aktywuj kod promocyjny",
-        "onboarding_export": "📤 **Eksport rozmów**\n\nMożesz wyeksportować historię Twoich rozmów do pliku PDF.\n\n**Dostępne komendy:**\n/export - Eksportuj bieżącą rozmowę do PDF",
-        "onboarding_themes": "📑 **Tematy konwersacji**\n\nOrganizuj swoje rozmowy w tematyczne wątki. Każdy temat tworzy osobną konwersację.\n\n**Dostępne komendy:**\n/theme - Zarządzaj tematami\n/theme [nazwa] - Utwórz nowy temat\n/notheme - Przełącz na rozmowę bez tematu",
-        "onboarding_reminders": "⏰ **Przypomnienia**\n\nBot może ustawić dla Ciebie przypomnienia o określonych porach.\n\n**Dostępne komendy:**\n/remind [czas] [treść] - Ustaw przypomnienie\n/reminders - Pokaż listę przypomnień",
-        "onboarding_notes": "📝 **Notatki**\n\nZapisuj ważne informacje jako notatki i łatwo je odnajduj.\n\n**Dostępne komendy:**\n/note [tytuł] [treść] - Utwórz notatkę\n/notes - Pokaż listę notatek",
-        "onboarding_settings": "⚙️ **Ustawienia i personalizacja**\n\nDostosuj bota do swoich preferencji.\n\n**Dostępne komendy:**\n/start - Otwórz menu główne\n/language - Zmień język\n/setname - Ustaw swoją nazwę\n/restart - Zrestartuj bota",
-        "onboarding_finish": "🎉 **Gratulacje!**\n\nZakończyłeś przewodnik po funkcjach bota {bot_name}. Teraz znasz już wszystkie możliwości, które oferuje nasz bot!\n\nJeśli masz jakiekolwiek pytania, użyj komendy /start, aby otworzyć menu główne lub po prostu zapytaj bota.\n\nMiłego korzystania! 🚀",
+        "onboarding_chat": "💬 *Czat z AI*\n\nMożesz prowadzić rozmowy z różnymi modelami AI:\n• GPT-3.5 Turbo (szybki i ekonomiczny)\n• GPT-4o (inteligentny i wszechstronny)\n• GPT-4 (zaawansowany ekspert)\n\nPo prostu wyślij wiadomość, a bot odpowie!\n\n*Dostępne komendy:*\n/models - Wybierz model AI\n/newchat - Rozpocznij nową rozmowę",
+        "onboarding_modes": "🔄 *Tryby czatu*\n\nBot może działać w różnych trybach, dostosowanych do Twoich potrzeb:\n• Asystent - pomoc ogólna\n• Programista - pomoc z kodem\n• Kreatywny pisarz - tworzenie treści\ni wiele innych!\n\n*Dostępne komendy:*\n/mode - Wybierz tryb czatu",
+        "onboarding_images": "🖼️ *Generowanie obrazów*\n\nMożesz tworzyć unikalne obrazy na podstawie Twoich opisów za pomocą modelu DALL-E 3.\n\n*Dostępne komendy:*\n/image [opis] - Wygeneruj obraz na podstawie opisu",
+        "onboarding_analysis": "🔍 *Analiza dokumentów i zdjęć*\n\nBot może analizować przesłane przez Ciebie dokumenty i zdjęcia.\n\nWystarczy przesłać plik lub zdjęcie, a bot dokona ich analizy. Obsługiwane są różne formaty plików.",
+        "onboarding_credits": "💰 *System kredytów*\n\nKorzystanie z bota wymaga kredytów. Różne operacje kosztują różną liczbę kredytów:\n• Standardowa wiadomość: 1 kredyt\n• Premium wiadomość (GPT-4o): 3 kredyty\n• Ekspercka wiadomość (GPT-4): 5 kredytów\n• Obraz DALL-E: 10-15 kredytów\n• Analiza dokumentu: 5 kredytów\n• Analiza zdjęcia: 8 kredytów\n• Tłumaczenie: 8 kredytów\n\nMożesz kupić kredyty na kilka sposobów:\n• Komendą /buy - zakup za PLN\n• Komendą /buy stars - zakup za gwiazdki Telegram\n\n*Dostępne komendy:*\n/credits - Sprawdź stan kredytów\n/buy - Kup pakiet kredytów\n/creditstats - Analiza wykorzystania kredytów z wykresami\n/code - Aktywuj kod promocyjny",
+        "onboarding_export": "📤 *Eksport rozmów*\n\nMożesz wyeksportować historię Twoich rozmów do pliku PDF.\n\n*Dostępne komendy:*\n/export - Eksportuj bieżącą rozmowę do PDF",
+        "onboarding_settings": "⚙️ *Ustawienia i personalizacja*\n\nDostosuj bota do swoich preferencji.\n\n*Dostępne komendy:*\n/start - Otwórz menu główne\n/language - Zmień język\n/setname - Ustaw swoją nazwę\n/restart - Zrestartuj bota",
+        "onboarding_finish": "🎉 *Gratulacje!*\n\nZakończyłeś przewodnik po funkcjach bota {bot_name}. Teraz znasz już wszystkie możliwości, które oferuje nasz bot!\n\nJeśli masz jakiekolwiek pytania, użyj komendy /start, aby otworzyć menu główne lub po prostu zapytaj bota.\n\nMiłego korzystania! 🚀",
         "onboarding_next": "Dalej ➡️",
         "onboarding_back": "⬅️ Wstecz",
         "onboarding_finish_button": "🏁 Zakończ przewodnik",
-        "onboarding_analysis": "🔍 **Analiza dokumentów i zdjęć**\n\nBot może analizować przesłane przez Ciebie dokumenty i zdjęcia. Dodatkowo oferuje funkcję tłumaczenia!\n\nWystarczy przesłać plik lub zdjęcie, a bot dokona ich analizy. Możesz również:\n• Użyć komendy /translate wysyłając zdjęcie z tekstem\n• Użyć przycisku \"Przetłumacz tekst z tego zdjęcia\" pod analizą\n• Dla dokumentów PDF - przetłumaczyć pierwszy akapit\n\nKoszty: Analiza zdjęcia - 8 kredytów, dokumentu - 5 kredytów, tłumaczenie - 8 kredytów.",
-        "onboarding_referral": "👥 **Program referencyjny**\n\nZapraszaj znajomych i zyskuj dodatkowe kredyty! Za każdą osobę, która skorzysta z Twojego kodu polecającego, otrzymasz bonus.\n\nSposób działania:\n• Każdy użytkownik ma swój unikalny kod referencyjny w formacie REF + ID\n• Za każdą osobę, która użyje Twojego kodu, otrzymujesz 50 kredytów\n• Nowy użytkownik otrzymuje bonus 25 kredytów na start\n\nZachęcaj znajomych do korzystania z bota i zyskuj darmowe kredyty!",
+        "onboarding_analysis": "🔍 *Analiza dokumentów i zdjęć*\n\nBot może analizować przesłane przez Ciebie dokumenty i zdjęcia. Dodatkowo oferuje funkcję tłumaczenia!\n\nWystarczy przesłać plik lub zdjęcie, a bot dokona ich analizy. Możesz również:\n• Użyć komendy /translate wysyłając zdjęcie z tekstem\n• Użyć przycisku \"Przetłumacz tekst z tego zdjęcia\" pod analizą\n• Dla dokumentów PDF - przetłumaczyć pierwszy akapit\n\nKoszty: Analiza zdjęcia - 8 kredytów, dokumentu - 5 kredytów, tłumaczenie - 8 kredytów.",
+        "onboarding_referral": "👥 *Program referencyjny*\n\nZapraszaj znajomych i zyskuj dodatkowe kredyty! Za każdą osobę, która skorzysta z Twojego kodu polecającego, otrzymasz bonus.\n\nSposób działania:\n• Każdy użytkownik ma swój unikalny kod referencyjny w formacie REF + ID\n• Za każdą osobę, która użyje Twojego kodu, otrzymujesz 50 kredytów\n• Nowy użytkownik otrzymuje bonus 25 kredytów na start\n\nZachęcaj znajomych do korzystania z bota i zyskuj darmowe kredyty!",
 
         # Dla PDF polskiego
         "not_pdf_file": "Plik nie jest w formacie PDF. Proszę przesłać plik PDF.",
@@ -252,7 +249,6 @@ translations = {
         "restart_command": "Bot został zrestartowany pomyślnie.",
         "models_command": "Wybierz model AI do używania:",
         "translate_command": "Użyj tej komendy z przesłanym zdjęciem, aby przetłumaczyć tekst.",
-        "theme_command": "Zarządzaj tematami konwersacji:",
         "total_purchased": "Łącznie zakupiono",
         "total_spent": "Łącznie wydano",
         "last_purchase": "Ostatni zakup",
@@ -266,7 +262,7 @@ translations = {
         "export_file_caption": "📄 Historia konwersacji w formacie PDF",
 
         # Polski (pl)
-        "translate_instruction": "📄 **Tłumaczenie tekstu**\n\nDostępne opcje:\n\n1️⃣ Prześlij zdjęcie z tekstem do tłumaczenia i dodaj /translate w opisie lub odpowiedz na zdjęcie komendą /translate\n\n2️⃣ Wyślij dokument i odpowiedz na niego komendą /translate\n\n3️⃣ Użyj komendy /translate [język_docelowy] [tekst]\nNa przykład: /translate en Witaj świecie!\n\nDostępne języki docelowe: en (angielski), pl (polski), ru (rosyjski), fr (francuski), de (niemiecki), es (hiszpański), it (włoski), zh (chiński)",
+        "translate_instruction": "📄 *Tłumaczenie tekstu*\n\nDostępne opcje:\n\n1️⃣ Prześlij zdjęcie z tekstem do tłumaczenia i dodaj /translate w opisie lub odpowiedz na zdjęcie komendą /translate\n\n2️⃣ Wyślij dokument i odpowiedz na niego komendą /translate\n\n3️⃣ Użyj komendy /translate [język_docelowy] [tekst]\nNa przykład: /translate en Witaj świecie!\n\nDostępne języki docelowe: en (angielski), pl (polski), ru (rosyjski), fr (francuski), de (niemiecki), es (hiszpański), it (włoski), zh (chiński)",
         "translating_image": "Tłumaczę tekst ze zdjęcia, proszę czekać...",
         "translating_text": "Tłumaczę tekst, proszę czekać...",
         "translation_result": "Wynik tłumaczenia",
@@ -373,6 +369,32 @@ translations = {
         "no_active_chat": "Brak aktywnej rozmowy",
         "quick_actions": "Szybkie akcje",
         "back_to_main_menu": "Powrót do głównego menu",
+
+        "photo_suggestions": "Co chcesz zrobić z tym zdjęciem? Wyślij zdjęcie z podpisem np.:\n\n"
+                             "• \"Opisz co widzisz na zdjęciu\"\n"
+                             "• \"Przetłumacz tekst z tego zdjęcia\"\n"
+                             "• \"Przetłumacz tekst ze zdjęcia na angielski\"\n"
+                             "• \"Analizuj obraz i powiedz co przedstawia\"\n"
+                             "• \"Jaki obiekt jest na tym obrazie?\"\n\n"
+                             "Po prostu odpowiedz na tę wiadomość z tym, co chcesz zrobić.",
+        
+        "pdf_suggestions": "Co chcesz zrobić z tym dokumentem PDF? Wyślij dokument z podpisem np.:\n\n"
+                           "• \"Analizuj ten dokument\"\n"
+                           "• \"Przetłumacz ten dokument\"\n"
+                           "• \"Streszcz zawartość pliku\"\n"
+                           "• \"Wyciągnij najważniejsze informacje z tego PDF\"\n\n"
+                           "Po prostu odpowiedz na tę wiadomość z tym, co chcesz zrobić.",
+        
+        "document_suggestions": "Co chcesz zrobić z tym dokumentem? Wyślij to z podpisem np.:\n\n"
+                                "• \"Analizuj ten dokument\"\n"
+                                "• \"Streszcz zawartość pliku\"\n"
+                                "• \"Opisz co zawiera ten plik\"\n"
+                                "• \"Wyciągnij najważniejsze informacje z pliku\"\n\n"
+                                "Po prostu odpowiedz na tę wiadomość z tym, co chcesz zrobić.",
+
+        "no_active_chat_message": "Aby rozpocząć używanie AI, najpierw utwórz nowy czat używając /newchat lub przycisku poniżej. Możesz również wybrać tryb czatu z menu.",
+        "start_new_chat": "Rozpocznij nowy czat",
+        "select_mode": "Wybierz tryb czatu",
     },
     
     "en": {
@@ -553,22 +575,19 @@ translations = {
         
         # Komunikaty onboardingu
         "onboarding_welcome": "Welcome to the {bot_name} feature guide! 🚀\n\nIn this guide, you'll learn about all the capabilities our bot offers. Each message will introduce you to a different feature.\n\nReady to start?",
-        "onboarding_chat": "💬 **Chat with AI**\n\nYou can have conversations with different AI models:\n• GPT-3.5 Turbo (fast and economical)\n• GPT-4o (intelligent and versatile)\n• GPT-4 (advanced expert)\n\nJust send a message and the bot will respond!\n\n**Available commands:**\n/models - Choose AI model\n/newchat - Start a new conversation",
-        "onboarding_modes": "🔄 **Chat Modes**\n\nThe bot can operate in different modes, tailored to your needs:\n• Assistant - general help\n• Developer - code assistance\n• Creative writer - content creation\nand many more!\n\n**Available commands:**\n/mode - Choose chat mode",
-        "onboarding_images": "🖼️ **Image Generation**\n\nYou can create unique images based on your descriptions using the DALL-E 3 model.\n\n**Available commands:**\n/image [description] - Generate an image based on description",
-        "onboarding_analysis": "🔍 **Document and Photo Analysis**\n\nThe bot can analyze documents and photos you send.\n\nJust upload a file or photo, and the bot will analyze it. Various file formats are supported.",
-        "onboarding_credits": "💰 **Credit System**\n\nUsing the bot requires credits. Different operations cost different amounts of credits:\n• Standard message: 1 credit\n• Premium message (GPT-4o): 3 credits\n• Expert message (GPT-4): 5 credits\n• DALL-E image: 10-15 credits\n• Document analysis: 5 credits\n• Photo analysis: 8 credits\n• Translation: 8 credits\n\nYou can buy credits in several ways:\n• Using /buy command - purchase with PLN\n• Using /buy stars command - purchase with Telegram stars\n\n**Available commands:**\n/credits - Check credit balance\n/buy - Buy credit package\n/creditstats - Credit usage analysis with charts\n/code - Activate promo code",
-        "onboarding_export": "📤 **Conversation Export**\n\nYou can export your conversation history to a PDF file.\n\n**Available commands:**\n/export - Export current conversation to PDF",
-        "onboarding_themes": "📑 **Conversation Themes**\n\nOrganize your conversations into thematic threads. Each theme creates a separate conversation.\n\n**Available commands:**\n/theme - Manage themes\n/theme [name] - Create a new theme\n/notheme - Switch to themeless conversation",
-        "onboarding_reminders": "⏰ **Reminders**\n\nThe bot can set reminders for you at specific times.\n\n**Available commands:**\n/remind [time] [content] - Set a reminder\n/reminders - Show reminder list",
-        "onboarding_notes": "📝 **Notes**\n\nSave important information as notes and easily find them later.\n\n**Available commands:**\n/note [title] [content] - Create a note\n/notes - Show notes list",
-        "onboarding_settings": "⚙️ **Settings and Personalization**\n\nCustomize the bot to your preferences.\n\n**Available commands:**\n/start - Open main menu\n/language - Change language\n/setname - Set your name\n/restart - Restart the bot",
-        "onboarding_finish": "🎉 **Congratulations!**\n\nYou've completed the {bot_name} feature guide. Now you know all the capabilities our bot offers!\n\nIf you have any questions, use the /start command to open the main menu or simply ask the bot.\n\nEnjoy using it! 🚀",
+        "onboarding_chat": "💬 *Chat with AI*\n\nYou can have conversations with different AI models:\n• GPT-3.5 Turbo (fast and economical)\n• GPT-4o (intelligent and versatile)\n• GPT-4 (advanced expert)\n\nJust send a message and the bot will respond!\n\n*Available commands:*\n/models - Choose AI model\n/newchat - Start a new conversation",
+        "onboarding_modes": "🔄 *Chat Modes*\n\nThe bot can operate in different modes, tailored to your needs:\n• Assistant - general help\n• Developer - code assistance\n• Creative writer - content creation\nand many more!\n\n*Available commands:*\n/mode - Choose chat mode",
+        "onboarding_images": "🖼️ *Image Generation*\n\nYou can create unique images based on your descriptions using the DALL-E 3 model.\n\n*Available commands:*\n/image [description] - Generate an image based on description",
+        "onboarding_analysis": "🔍 *Document and Photo Analysis*\n\nThe bot can analyze documents and photos you send.\n\nJust upload a file or photo, and the bot will analyze it. Various file formats are supported.",
+        "onboarding_credits": "💰 *Credit System*\n\nUsing the bot requires credits. Different operations cost different amounts of credits:\n• Standard message: 1 credit\n• Premium message (GPT-4o): 3 credits\n• Expert message (GPT-4): 5 credits\n• DALL-E image: 10-15 credits\n• Document analysis: 5 credits\n• Photo analysis: 8 credits\n• Translation: 8 credits\n\nYou can buy credits in several ways:\n• Using /buy command - purchase with PLN\n• Using /buy stars command - purchase with Telegram stars\n\n*Available commands:*\n/credits - Check credit balance\n/buy - Buy credit package\n/creditstats - Credit usage analysis with charts\n/code - Activate promo code",
+        "onboarding_export": "📤 *Conversation Export*\n\nYou can export your conversation history to a PDF file.\n\n*Available commands:*\n/export - Export current conversation to PDF",
+        "onboarding_settings": "⚙️ *Settings and Personalization*\n\nCustomize the bot to your preferences.\n\n*Available commands:*\n/start - Open main menu\n/language - Change language\n/setname - Set your name\n/restart - Restart the bot",
+        "onboarding_finish": "🎉 *Congratulations!*\n\nYou've completed the {bot_name} feature guide. Now you know all the capabilities our bot offers!\n\nIf you have any questions, use the /start command to open the main menu or simply ask the bot.\n\nEnjoy using it! 🚀",
         "onboarding_next": "Next ➡️",
         "onboarding_back": "⬅️ Back",
         "onboarding_finish_button": "🏁 Finish guide",
-        "onboarding_analysis": "🔍 **Document and Photo Analysis**\n\nThe bot can analyze documents and photos you send. It also offers translation functionality!\n\nJust upload a file or photo, and the bot will analyze it. You can also:\n• Use the /translate command when sending an image with text\n• Use the \"Translate text from this image\" button under analysis\n• For PDF documents - translate the first paragraph\n\nCosts: Photo analysis - 8 credits, document analysis - 5 credits, translation - 8 credits.",
-        "onboarding_referral": "👥 **Referral Program**\n\nInvite friends and earn additional credits! For each person who uses your referral code, you'll receive a bonus.\n\nHow it works:\n• Each user has a unique referral code in the format REF + ID\n• For each person who uses your code, you receive 50 credits\n• New users receive a 25 credit bonus to start\n\nEncourage your friends to use the bot and earn free credits!",
+        "onboarding_analysis": "🔍 *Document and Photo Analysis*\n\nThe bot can analyze documents and photos you send. It also offers translation functionality!\n\nJust upload a file or photo, and the bot will analyze it. You can also:\n• Use the /translate command when sending an image with text\n• Use the \"Translate text from this image\" button under analysis\n• For PDF documents - translate the first paragraph\n\nCosts: Photo analysis - 8 credits, document analysis - 5 credits, translation - 8 credits.",
+        "onboarding_referral": "👥 *Referral Program*\n\nInvite friends and earn additional credits! For each person who uses your referral code, you'll receive a bonus.\n\nHow it works:\n• Each user has a unique referral code in the format REF + ID\n• For each person who uses your code, you receive 50 credits\n• New users receive a 25 credit bonus to start\n\nEncourage your friends to use the bot and earn free credits!",
 
         # Dla PDF angielskiego
         "not_pdf_file": "The file is not in PDF format. Please upload a PDF file.",
@@ -625,7 +644,6 @@ translations = {
         "restart_command": "Bot has been successfully restarted.",
         "models_command": "Choose an AI model to use:",
         "translate_command": "Use this command with an uploaded photo to translate text.",
-        "theme_command": "Manage conversation themes:",
         "total_purchased": "Total purchased",
         "total_spent": "Total spent",
         "last_purchase": "Last purchase",
@@ -639,7 +657,7 @@ translations = {
         "export_file_caption": "📄 Conversation history in PDF format",
 
         # Angielski (en)
-        "translate_instruction": "📄 **Text Translation**\n\nAvailable options:\n\n1️⃣ Send a photo with text to translate and add /translate in the caption or reply to the photo with the /translate command\n\n2️⃣ Send a document and reply to it with the /translate command\n\n3️⃣ Use the command /translate [target_language] [text]\nFor example: /translate pl Hello world!\n\nAvailable target languages: en (English), pl (Polish), ru (Russian), fr (French), de (German), es (Spanish), it (Italian), zh (Chinese)",
+        "translate_instruction": "📄 *Text Translation*\n\nAvailable options:\n\n1️⃣ Send a photo with text to translate and add /translate in the caption or reply to the photo with the /translate command\n\n2️⃣ Send a document and reply to it with the /translate command\n\n3️⃣ Use the command /translate [target_language] [text]\nFor example: /translate pl Hello world!\n\nAvailable target languages: en (English), pl (Polish), ru (Russian), fr (French), de (German), es (Spanish), it (Italian), zh (Chinese)",
         "translating_image": "Translating text from the image, please wait...",
         "translating_text": "Translating text, please wait...",
         "translation_result": "Translation result",
@@ -746,7 +764,31 @@ translations = {
         "no_active_chat": "No active chat",
         "quick_actions": "Quick Actions",
         "back_to_main_menu": "Back to Main Menu",
-    
+        "photo_suggestions": "What would you like to do with this photo? Reply with one of these examples:\n\n"
+                             "• \"Describe what you see in this photo\"\n"
+                             "• \"Translate the text from this image\"\n"
+                             "• \"Translate the text in this photo to Polish\"\n"
+                             "• \"Analyze this image and tell me what it shows\"\n"
+                             "• \"What object is in this picture?\"\n\n"
+                             "Just reply to this message with what you want to do.",
+        
+        "pdf_suggestions": "What would you like to do with this PDF document? Reply with one of these examples:\n\n"
+                           "• \"Analyze this document\"\n"
+                           "• \"Translate this document\"\n"
+                           "• \"Summarize the content of this file\"\n"
+                           "• \"Extract the most important information from this PDF\"\n\n"
+                           "Just reply to this message with what you want to do.",
+        
+        "document_suggestions": "What would you like to do with this document? Reply with one of these examples:\n\n"
+                                "• \"Analyze this document\"\n"
+                                "• \"Summarize the content of this file\"\n"
+                                "• \"Describe what's in this file\"\n"
+                                "• \"Extract the most important information from this file\"\n\n"
+                                "Just reply to this message with what you want to do.",
+
+        "no_active_chat_message": "To start using AI, please create a new chat first using /newchat or the button below. You can also select a chat mode from the menu.",
+        "start_new_chat": "Start new chat",
+        "select_mode": "Select chat mode",
     },
     
     "ru": {
@@ -927,22 +969,19 @@ translations = {
         
         # Komunikaty onboardingu
         "onboarding_welcome": "Добро пожаловать в руководство по функциям бота {bot_name}! 🚀\n\nВ этом руководстве вы узнаете обо всех возможностях, которые предлагает наш бот. Каждое сообщение познакомит вас с разными функциями.\n\nГотовы начать?",
-        "onboarding_chat": "💬 **Чат с ИИ**\n\nВы можете вести беседы с разными моделями ИИ:\n• GPT-3.5 Turbo (быстрый и экономичный)\n• GPT-4o (умный и универсальный)\n• GPT-4 (продвинутый эксперт)\n\nПросто отправьте сообщение, и бот ответит!\n\n**Доступные команды:**\n/models - Выбрать модель ИИ\n/newchat - Начать новый разговор",
-        "onboarding_modes": "🔄 **Режимы чата**\n\nБот может работать в разных режимах, адаптированных к вашим потребностям:\n• Ассистент - общая помощь\n• Разработчик - помощь с кодом\n• Креативный писатель - создание контента\nи многие другие!\n\n**Доступные команды:**\n/mode - Выбрать режим чата",
-        "onboarding_images": "🖼️ **Генерация изображений**\n\nВы можете создавать уникальные изображения на основе ваших описаний с помощью модели DALL-E 3.\n\n**Доступные команды:**\n/image [описание] - Сгенерировать изображение на основе описания",
-        "onboarding_analysis": "🔍 **Анализ документов и фотографий**\n\nБот может анализировать отправленные вами документы и фотографии.\n\nПросто загрузите файл или фото, и бот проведет их анализ. Поддерживаются различные форматы файлов.",
-        "onboarding_credits": "💰 **Система кредитов**\n\nИспользование бота требует кредитов. Разные операции стоят разное количество кредитов:\n• Стандартное сообщение: 1 кредит\n• Премиум сообщение (GPT-4o): 3 кредита\n• Экспертное сообщение (GPT-4): 5 кредитов\n• Изображение DALL-E: 10-15 кредитов\n• Анализ документа: 5 кредитов\n• Анализ фото: 8 кредитов\n• Перевод: 8 кредитов\n\nВы можете покупать кредиты несколькими способами:\n• Используя команду /buy - покупка за PLN\n• Используя команду /buy stars - покупка за звезды Telegram\n\n**Доступные команды:**\n/credits - Проверить баланс кредитов\n/buy - Купить пакет кредитов\n/creditstats - Анализ использования кредитов с графиками\n/code - Активировать промокод",
-        "onboarding_export": "📤 **Экспорт разговоров**\n\nВы можете экспортировать историю ваших разговоров в файл PDF.\n\n**Доступные команды:**\n/export - Экспортировать текущий разговор в PDF",
-        "onboarding_themes": "📑 **Темы бесед**\n\nОрганизуйте свои разговоры в тематические ветки. Каждая тема создает отдельный разговор.\n\n**Доступные команды:**\n/theme - Управление темами\n/theme [название] - Создать новую тему\n/notheme - Переключиться на разговор без темы",
-        "onboarding_reminders": "⏰ **Напоминания**\n\nБот может устанавливать для вас напоминания в определенное время.\n\n**Доступные команды:**\n/remind [время] [содержание] - Установить напоминание\n/reminders - Показать список напоминаний",
-        "onboarding_notes": "📝 **Заметки**\n\nСохраняйте важную информацию в виде заметок и легко находите их позднее.\n\n**Доступные команды:**\n/note [заголовок] [содержание] - Создать заметку\n/notes - Показать список заметок",
-        "onboarding_settings": "⚙️ **Настройки и персонализация**\n\nНастройте бота под свои предпочтения.\n\n**Доступные команды:**\n/start - Открыть главное меню\n/language - Изменить язык\n/setname - Установить свое имя\n/restart - Перезапустить бота",
+        "onboarding_chat": "💬 *Чат с ИИ*\n\nВы можете вести беседы с разными моделями ИИ:\n• GPT-3.5 Turbo (быстрый и экономичный)\n• GPT-4o (умный и универсальный)\n• GPT-4 (продвинутый эксперт)\n\nПросто отправьте сообщение, и бот ответит!\n\n*Доступные команды:*\n/models - Выбрать модель ИИ\n/newchat - Начать новый разговор",
+        "onboarding_modes": "🔄 *Режимы чата*\n\nБот может работать в разных режимах, адаптированных к вашим потребностям:\n• Ассистент - общая помощь\n• Разработчик - помощь с кодом\n• Креативный писатель - создание контента\nи многие другие!\n\n*Доступные команды:*\n/mode - Выбрать режим чата",
+        "onboarding_images": "🖼️ *Генерация изображений*\n\nВы можете создавать уникальные изображения на основе ваших описаний с помощью модели DALL-E 3.\n\n*Доступные команды:*\n/image [описание] - Сгенерировать изображение на основе описания",
+        "onboarding_analysis": "🔍 *Анализ документов и фотографий*\n\nБот может анализировать отправленные вами документы и фотографии.\n\nПросто загрузите файл или фото, и бот проведет их анализ. Поддерживаются различные форматы файлов.",
+        "onboarding_credits": "💰 *Система кредитов*\n\nИспользование бота требует кредитов. Разные операции стоят разное количество кредитов:\n• Стандартное сообщение: 1 кредит\n• Премиум сообщение (GPT-4o): 3 кредита\n• Экспертное сообщение (GPT-4): 5 кредитов\n• Изображение DALL-E: 10-15 кредитов\n• Анализ документа: 5 кредитов\n• Анализ фото: 8 кредитов\n• Перевод: 8 кредитов\n\nВы можете покупать кредиты несколькими способами:\n• Используя команду /buy - покупка за PLN\n• Используя команду /buy stars - покупка за звезды Telegram\n\n*Доступные команды:*\n/credits - Проверить баланс кредитов\n/buy - Купить пакет кредитов\n/creditstats - Анализ использования кредитов с графиками\n/code - Активировать промокод",
+        "onboarding_export": "📤 *Экспорт разговоров*\n\nВы можете экспортировать историю ваших разговоров в файл PDF.\n\n*Доступные команды:*\n/export - Экспортировать текущий разговор в PDF",
+        "onboarding_settings": "⚙️ *Настройки и персонализация*\n\nНастройте бота под свои предпочтения.\n\n*Доступные команды:*\n/start - Открыть главное меню\n/language - Изменить язык\n/setname - Установить свое имя\n/restart - Перезапустить бота",
         "onboarding_finish": "🎉 Поздравляем!\n\nВы завершили руководство по функциям бота {bot_name}. Теперь вы знаете все возможности, которые предлагает наш бот!\n\nЕсли у вас есть вопросы, используйте команду /start, чтобы открыть главное меню, или просто спросите бота.\n\nПриятного использования! 🚀",
         "onboarding_next": "Далее ➡️",
         "onboarding_back": "⬅️ Назад",
         "onboarding_finish_button": "🏁 Завершить руководство",
-        "onboarding_analysis": "🔍 **Анализ документов и фотографий**\n\nБот может анализировать отправленные вами документы и фотографии. Также он предлагает функцию перевода!\n\nПросто загрузите файл или фото, и бот проведет их анализ. Вы также можете:\n• Использовать команду /translate при отправке изображения с текстом\n• Использовать кнопку \"Перевести текст с этого изображения\" под анализом\n• Для документов PDF - перевести первый абзац\n\nСтоимость: Анализ фото - 8 кредитов, анализ документа - 5 кредитов, перевод - 8 кредитов.",
-        "onboarding_referral": "👥 **Реферальная программа**\n\nПриглашайте друзей и получайте дополнительные кредиты! За каждого человека, который воспользуется вашим реферальным кодом, вы получите бонус.\n\nКак это работает:\n• У каждого пользователя есть уникальный реферальный код в формате REF + ID\n• За каждого человека, который использует ваш код, вы получаете 50 кредитов\n• Новый пользователь получает бонус в 25 кредитов для начала\n\nПриглашайте друзей пользоваться ботом и получайте бесплатные кредиты!",
+        "onboarding_analysis": "🔍 *Анализ документов и фотографий*\n\nБот может анализировать отправленные вами документы и фотографии. Также он предлагает функцию перевода!\n\nПросто загрузите файл или фото, и бот проведет их анализ. Вы также можете:\n• Использовать команду /translate при отправке изображения с текстом\n• Использовать кнопку \"Перевести текст с этого изображения\" под анализом\n• Для документов PDF - перевести первый абзац\n\nСтоимость: Анализ фото - 8 кредитов, анализ документа - 5 кредитов, перевод - 8 кредитов.",
+        "onboarding_referral": "👥 *Реферальная программа*\n\nПриглашайте друзей и получайте дополнительные кредиты! За каждого человека, который воспользуется вашим реферальным кодом, вы получите бонус.\n\nКак это работает:\n• У каждого пользователя есть уникальный реферальный код в формате REF + ID\n• За каждого человека, который использует ваш код, вы получаете 50 кредитов\n• Новый пользователь получает бонус в 25 кредитов для начала\n\nПриглашайте друзей пользоваться ботом и получайте бесплатные кредиты!",
 
         # PDF rosyjski
         "not_pdf_file": "Файл не в формате PDF. Пожалуйста, загрузите файл PDF.",
@@ -1000,7 +1039,6 @@ translations = {
         "restart_command": "Бот был успешно перезапущен.",
         "models_command": "Выберите модель ИИ для использования:",
         "translate_command": "Используйте эту команду с загруженным фото для перевода текста.",
-        "theme_command": "Управление темами разговора:",
         "total_purchased": "Всего приобретено",
         "total_spent": "Всего потрачено",
         "last_purchase": "Последняя покупка",
@@ -1014,7 +1052,7 @@ translations = {
         "export_file_caption": "📄 История разговора в формате PDF",
 
         # Rosyjski (ru)
-        "translate_instruction": "📄 **Перевод текста**\n\nДоступные опции:\n\n1️⃣ Отправьте фото с текстом для перевода и добавьте /translate в описание или ответьте на фото командой /translate\n\n2️⃣ Отправьте документ и ответьте на него командой /translate\n\n3️⃣ Используйте команду /translate [целевой_язык] [текст]\nНапример: /translate en Привет мир!\n\nДоступные целевые языки: en (английский), pl (польский), ru (русский), fr (французский), de (немецкий), es (испанский), it (итальянский), zh (китайский)",
+        "translate_instruction": "📄 *Перевод текста*\n\nДоступные опции:\n\n1️⃣ Отправьте фото с текстом для перевода и добавьте /translate в описание или ответьте на фото командой /translate\n\n2️⃣ Отправьте документ и ответьте на него командой /translate\n\n3️⃣ Используйте команду /translate [целевой_язык] [текст]\nНапример: /translate en Привет мир!\n\nДоступные целевые языки: en (английский), pl (польский), ru (русский), fr (французский), de (немецкий), es (испанский), it (итальянский), zh (китайский)",
         "translating_image": "Перевожу текст с изображения, пожалуйста, подождите...",
         "translating_text": "Перевожу текст, пожалуйста, подождите...",
         "translation_result": "Результат перевода",
@@ -1121,6 +1159,32 @@ translations = {
         "no_active_chat": "Нет активного чата",
         "quick_actions": "Быстрые действия",
         "back_to_main_menu": "Вернуться в главное меню",
+
+        "photo_suggestions": "Что вы хотите сделать с этой фотографией? Ответьте одним из примеров:\n\n"
+                             "• \"Опиши, что ты видишь на фото\"\n"
+                             "• \"Переведи текст с этого изображения\"\n"
+                             "• \"Переведи текст с фото на английский\"\n"
+                             "• \"Проанализируй изображение и скажи, что на нем\"\n"
+                             "• \"Какой объект на этом фото?\"\n\n"
+                             "Просто ответьте на это сообщение, написав, что вы хотите сделать.",
+        
+        "pdf_suggestions": "Что вы хотите сделать с этим PDF-документом? Ответьте одним из примеров:\n\n"
+                           "• \"Проанализируй этот документ\"\n"
+                           "• \"Переведи этот документ\"\n"
+                           "• \"Сделай резюме содержания файла\"\n"
+                           "• \"Извлеки самую важную информацию из этого PDF\"\n\n"
+                           "Просто ответьте на это сообщение, написав, что вы хотите сделать.",
+        
+        "document_suggestions": "Что вы хотите сделать с этим документом? Ответьте одним из примеров:\n\n"
+                                "• \"Проанализируй этот документ\"\n"
+                                "• \"Сделай резюме содержания файла\"\n"
+                                "• \"Опиши, что содержится в этом файле\"\n"
+                                "• \"Извлеки самую важную информацию из файла\"\n\n"
+                                "Просто ответьте на это сообщение, написав, что вы хотите сделать.",
+                                
+        "no_active_chat_message": "Чтобы начать использовать ИИ, сначала создайте новый чат с помощью /newchat или кнопки ниже. Вы также можете выбрать режим чата из меню.",
+        "start_new_chat": "Начать новый чат",
+        "select_mode": "Выбрать режим чата",
 
     }
 }

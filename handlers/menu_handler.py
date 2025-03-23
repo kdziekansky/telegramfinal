@@ -6,46 +6,24 @@ from utils.translations import get_text
 from database.credits_client import get_user_credits
 from database.supabase_client import update_user_language
 from database.credits_client import get_user_credits, get_credit_packages
+from utils.menu_utils import safe_markdown, update_menu
 from config import BOT_NAME
+from utils.menu_utils import create_menu_buttons
+from utils.menu_utils import menu_state
+from utils.user_utils import get_user_language, mark_chat_initialized, is_chat_initialized
+from utils.menu_utils import update_menu
+from utils.error_handler import handle_callback_error
+from utils.ui_elements import info_card, credit_status_bar, section_divider, feature_badge
+from utils.message_formatter_enhanced import enhance_credits_display, enhance_help_message, format_mode_selection
+from utils.visual_styles import style_message, create_header, create_section
+from utils.tips import get_random_tip, should_show_tip
+from utils.credit_warnings import get_low_credits_notification
+
+
+
+
 
 # ==================== FUNKCJE POMOCNICZE DO ZARZĄDZANIA DANYMI UŻYTKOWNIKA ====================
-
-def get_user_language(context, user_id):
-    """Pobiera język użytkownika z kontekstu lub bazy danych"""
-    # Sprawdź, czy język jest zapisany w kontekście
-    if 'user_data' in context.chat_data and user_id in context.chat_data['user_data'] and 'language' in context.chat_data['user_data'][user_id]:
-        return context.chat_data['user_data'][user_id]['language']
-    
-    # Jeśli nie, pobierz z bazy danych Supabase
-    try:
-        from database.supabase_client import supabase
-        
-        # Sprawdź najpierw kolumnę 'language'
-        response = supabase.table('users').select('language, language_code').eq('id', user_id).execute()
-        
-        if response.data:
-            user_data = response.data[0]
-            language = user_data.get('language')
-            
-            # Jeśli nie ma language, użyj language_code
-            if not language:
-                language = user_data.get('language_code')
-            
-            if language:
-                # Zapisz w kontekście na przyszłość
-                if 'user_data' not in context.chat_data:
-                    context.chat_data['user_data'] = {}
-                
-                if user_id not in context.chat_data['user_data']:
-                    context.chat_data['user_data'][user_id] = {}
-                
-                context.chat_data['user_data'][user_id]['language'] = language
-                return language
-    except Exception as e:
-        print(f"Błąd pobierania języka z bazy: {e}")
-    
-    # Domyślny język, jeśli nie znaleziono w bazie
-    return "pl"
 
 def generate_navigation_bar(current_path, language):
     """
@@ -80,82 +58,46 @@ def get_user_current_model(context, user_id):
     return DEFAULT_MODEL  # Domyślny model
 
 def store_menu_state(context, user_id, state, message_id=None):
-    """
-    Zapisuje stan menu dla użytkownika
-    
-    Args:
-        context: Kontekst bota
-        user_id: ID użytkownika
-        state: Stan menu (np. 'main', 'settings', 'chat_modes')
-        message_id: ID wiadomości menu (opcjonalnie)
-    """
-    if 'user_data' not in context.chat_data:
-        context.chat_data['user_data'] = {}
-    
-    if user_id not in context.chat_data['user_data']:
-        context.chat_data['user_data'][user_id] = {}
-    
-    context.chat_data['user_data'][user_id]['menu_state'] = state
-    
+    """Zapisuje stan menu dla użytkownika"""
+    menu_state.set_state(user_id, state)
     if message_id:
-        context.chat_data['user_data'][user_id]['menu_message_id'] = message_id
+        menu_state.set_message_id(user_id, message_id)
+    menu_state.save_to_context(context, user_id)
 
 def get_menu_state(context, user_id):
-    """
-    Pobiera stan menu dla użytkownika
-    
-    Args:
-        context: Kontekst bota
-        user_id: ID użytkownika
-        
-    Returns:
-        str: Stan menu lub 'main' jeśli brak
-    """
-    if 'user_data' in context.chat_data and user_id in context.chat_data['user_data'] and 'menu_state' in context.chat_data['user_data'][user_id]:
-        return context.chat_data['user_data'][user_id]['menu_state']
-    return 'main'
+    """Pobiera stan menu dla użytkownika"""
+    menu_state.load_from_context(context, user_id)
+    return menu_state.get_state(user_id)
 
 def get_menu_message_id(context, user_id):
-    """
-    Pobiera ID wiadomości menu dla użytkownika
-    
-    Args:
-        context: Kontekst bota
-        user_id: ID użytkownika
-        
-    Returns:
-        int: ID wiadomości lub None jeśli brak
-    """
-    if 'user_data' in context.chat_data and user_id in context.chat_data['user_data'] and 'menu_message_id' in context.chat_data['user_data'][user_id]:
-        return context.chat_data['user_data'][user_id]['menu_message_id']
-    return None
+    """Pobiera ID wiadomości menu dla użytkownika"""
+    menu_state.load_from_context(context, user_id)
+    return menu_state.get_message_id(user_id)
 
 # ==================== FUNKCJE GENERUJĄCE UKŁADY MENU ====================
 
 def create_main_menu_markup(language):
     """Tworzy klawiaturę dla głównego menu"""
-    keyboard = [
+    button_configs = [
         [
-            InlineKeyboardButton(get_text("menu_chat_mode", language), callback_data="menu_section_chat_modes"),
-            InlineKeyboardButton(get_text("image_generate", language), callback_data="menu_image_generate")
+            ("menu_chat_mode", "menu_section_chat_modes"),
+            ("image_generate", "menu_image_generate")
         ],
         [
-            InlineKeyboardButton(get_text("menu_credits", language), callback_data="menu_section_credits"),
-            InlineKeyboardButton(get_text("menu_dialog_history", language), callback_data="menu_section_history")
+            ("menu_credits", "menu_section_credits"),
+            ("menu_dialog_history", "menu_section_history")
         ],
         [
-            InlineKeyboardButton(get_text("menu_settings", language), callback_data="menu_section_settings"),
-            InlineKeyboardButton(get_text("menu_help", language), callback_data="menu_help")
+            ("menu_settings", "menu_section_settings"),
+            ("menu_help", "menu_help")
         ],
         # Pasek szybkiego dostępu
         [
-            InlineKeyboardButton("🆕 " + get_text("new_chat", language, default="Nowa rozmowa"), callback_data="quick_new_chat"),
-            InlineKeyboardButton("💬 " + get_text("last_chat", language, default="Ostatnia rozmowa"), callback_data="quick_last_chat"),
-            InlineKeyboardButton("💸 " + get_text("buy_credits_btn", language, default="Kup kredyty"), callback_data="quick_buy_credits")
+            ("new_chat", "quick_new_chat", "🆕"),
+            ("last_chat", "quick_last_chat", "💬"),
+            ("buy_credits_btn", "quick_buy_credits", "💸")
         ]
     ]
-    
-    return InlineKeyboardMarkup(keyboard)
 
 def create_chat_modes_markup(language):
     """Tworzy klawiaturę dla menu trybów czatu"""
@@ -281,84 +223,324 @@ def create_language_selection_markup(language):
     
     return InlineKeyboardMarkup(keyboard)
 
-# ==================== FUNKCJE POMOCNICZE DO AKTUALIZACJI WIADOMOŚCI ====================
+# ==================== FUNKCJE OBSŁUGUJĄCE CALLBACK ====================
 
-async def update_message(query, caption_or_text, reply_markup, parse_mode=None):
-    """
-    Aktualizuje wiadomość, obsługując różne typy wiadomości i błędy
+async def handle_mode_callbacks(update, context):
+    """Obsługuje callbacki związane z trybami czatu"""
+    query = update.callback_query
     
-    Args:
-        query: Obiekt callback_query
-        caption_or_text: Treść do aktualizacji
-        reply_markup: Klawiatura inline
-        parse_mode: Tryb formatowania (opcjonalnie)
-    
-    Returns:
-        bool: True jeśli się powiodło, False w przypadku błędu
-    """
-    try:
-        # Sprawdzamy, czy wiadomość ma caption (jest zdjęciem lub innym typem mediów)
-        has_caption = hasattr(query.message, 'caption') and query.message.caption is not None
-        
-        if has_caption:
-            # Wiadomość ma podpis (jest to zdjęcie lub inny typ mediów)
-            if parse_mode:
-                await query.edit_message_caption(
-                    caption=caption_or_text,
-                    reply_markup=reply_markup,
-                    parse_mode=parse_mode
-                )
-            else:
-                await query.edit_message_caption(
-                    caption=caption_or_text,
-                    reply_markup=reply_markup
-                )
-        else:
-            # Standardowa wiadomość tekstowa
-            if parse_mode:
-                await query.edit_message_text(
-                    text=caption_or_text,
-                    reply_markup=reply_markup,
-                    parse_mode=parse_mode
-                )
-            else:
-                await query.edit_message_text(
-                    text=caption_or_text,
-                    reply_markup=reply_markup
-                )
-        return True
-    except Exception as e:
-        print(f"Błąd aktualizacji wiadomości: {e}")
-        
-        # Spróbuj bez formatowania, jeśli był ustawiony tryb formatowania
-        if parse_mode:
-            try:
-                return await update_message(query, caption_or_text, reply_markup, parse_mode=None)
-            except Exception as e2:
-                print(f"Drugi błąd aktualizacji wiadomości: {e2}")
-        
-        # Ostatnia szansa - stwórz nową wiadomość zamiast edytować istniejącą
+    # Obsługa wyboru trybu czatu
+    if query.data.startswith("mode_"):
+        mode_id = query.data[5:]  # Usuń prefiks "mode_"
         try:
-            await query.message.delete()
-            message = await query.message.chat.send_message(
-                text=caption_or_text,
-                reply_markup=reply_markup,
-                parse_mode=parse_mode
-            )
-            
-            # Jeśli funkcja store_menu_state jest dostępna, zapisz ID nowej wiadomości
-            if 'store_menu_state' in globals():
-                store_menu_state(context, user_id, menu_state, message.message_id)
-            
+            await handle_mode_selection(update, context, mode_id)
             return True
-        except Exception as e3:
-            print(f"Trzeci błąd aktualizacji wiadomości: {e3}")
-            return False
+        except Exception as e:
+            print(f"Błąd przy obsłudze wyboru trybu: {e}")
+            await query.answer("Wystąpił błąd podczas wyboru trybu czatu.")
+            return True
+    
+    return False  # Nie obsłużono callbacku
+
+async def handle_settings_callbacks(update, context):
+    """Obsługuje callbacki związane z ustawieniami"""
+    query = update.callback_query
+    user_id = query.from_user.id
+    language = get_user_language(context, user_id)
+    
+    await query.answer()  # Odpowiedz na callback, aby usunąć oczekiwanie
+    
+    # Obsługa opcji ustawień
+    if query.data.startswith("settings_"):
+        settings_type = query.data[9:]  # Usuń prefiks "settings_"
+        
+        if settings_type == "model":
+            await handle_model_selection(update, context)
+            return True
+        elif settings_type == "language":
+            # Pokaż menu wyboru języka z obsługą zarówno zdjęć jak i wiadomości tekstowych
+            keyboard = []
+            for lang_code, lang_name in AVAILABLE_LANGUAGES.items():
+                keyboard.append([
+                    InlineKeyboardButton(
+                        lang_name, 
+                        callback_data=f"start_lang_{lang_code}"
+                    )
+                ])
+            
+            # Dodaj przycisk powrotu
+            keyboard.append([
+                InlineKeyboardButton(get_text("back", language), callback_data="menu_section_settings")
+            ])
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            # Sprawdź, czy wiadomość ma zdjęcie (caption) czy jest tekstowa
+            message_text = get_text("settings_choose_language", language, default="Wybierz język:")
+            is_caption = hasattr(query.message, 'caption') and query.message.caption is not None
+            
+            try:
+                if is_caption:
+                    await query.edit_message_caption(
+                        caption=message_text,
+                        reply_markup=reply_markup
+                    )
+                else:
+                    await query.edit_message_text(
+                        text=message_text,
+                        reply_markup=reply_markup
+                    )
+            except Exception as e:
+                print(f"Błąd przy aktualizacji menu języka: {e}")
+                # W przypadku błędu wysyłamy nową wiadomość
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=message_text,
+                    reply_markup=reply_markup
+                )
+            return True
+        elif settings_type == "name":
+            await handle_name_settings(update, context)
+            return True
+    
+    # Obsługa wyboru języka
+    elif query.data.startswith("start_lang_"):
+        language_code = query.data[11:]  # Usuń prefiks "start_lang_"
+        
+        # Zapisz język w bazie danych
+        try:
+            from database.supabase_client import update_user_language
+            update_user_language(user_id, language_code)
+        except Exception as e:
+            print(f"Błąd zapisywania języka: {e}")
+        
+        # Zapisz język w kontekście
+        if 'user_data' not in context.chat_data:
+            context.chat_data['user_data'] = {}
+        
+        if user_id not in context.chat_data['user_data']:
+            context.chat_data['user_data'][user_id] = {}
+        
+        context.chat_data['user_data'][user_id]['language'] = language_code
+        
+        # Powiadom użytkownika o zmianie języka
+        language_name = AVAILABLE_LANGUAGES.get(language_code, language_code)
+        message = f"✅ {get_text('language_changed', language_code, default='Język został zmieniony na')}: {language_name}"
+        
+        # Przyciski powrotu
+        keyboard = [[InlineKeyboardButton("⬅️ " + get_text("back", language_code), callback_data="menu_section_settings")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Obsługa zarówno wiadomości tekstowych jak i wiadomości z caption
+        is_caption = hasattr(query.message, 'caption') and query.message.caption is not None
+        try:
+            if is_caption:
+                await query.edit_message_caption(
+                    caption=message,
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.edit_message_text(
+                    text=message,
+                    reply_markup=reply_markup
+                )
+        except Exception as e:
+            print(f"Błąd przy aktualizacji potwierdzenia zmiany języka: {e}")
+            # W przypadku błędu wysyłamy nową wiadomość
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=message,
+                reply_markup=reply_markup
+            )
+        return True
+    
+    # Obsługa wyboru modelu 
+    elif query.data.startswith("model_"):
+        model_id = query.data[6:]  # Usuń prefiks "model_"
+        
+        # Zapisz model w kontekście
+        if 'user_data' not in context.chat_data:
+            context.chat_data['user_data'] = {}
+        
+        if user_id not in context.chat_data['user_data']:
+            context.chat_data['user_data'][user_id] = {}
+        
+        context.chat_data['user_data'][user_id]['current_model'] = model_id
+        
+        # Oznacz czat jako zainicjowany
+        mark_chat_initialized(context, user_id)
+        
+        # Pobierz koszt kredytów dla wybranego modelu
+        credit_cost = CREDIT_COSTS["message"].get(model_id, CREDIT_COSTS["message"]["default"])
+        
+        # Powiadom użytkownika o zmianie modelu
+        model_name = AVAILABLE_MODELS.get(model_id, "Nieznany model")
+        message = f"Wybrany model: *{model_name}*\nKoszt: *{credit_cost}* kredyt(ów) za wiadomość\n\nMożesz teraz zadać pytanie."
+        
+        # Przyciski powrotu
+        keyboard = [[InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_settings")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Obsługa zarówno wiadomości tekstowych jak i wiadomości z caption
+        is_caption = hasattr(query.message, 'caption') and query.message.caption is not None
+        try:
+            if is_caption:
+                await query.edit_message_caption(
+                    caption=message,
+                    reply_markup=reply_markup,
+                    parse_mode="Markdown"
+                )
+            else:
+                await query.edit_message_text(
+                    text=message,
+                    reply_markup=reply_markup,
+                    parse_mode="Markdown"
+                )
+        except Exception as e:
+            print(f"Błąd przy aktualizacji potwierdzenia zmiany modelu: {e}")
+            # W przypadku błędu wysyłamy nową wiadomość
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=message,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        return True
+    
+    return False  # Nie obsłużono callbacku
+
+async def handle_credits_callbacks(update, context):
+    """Obsługuje callbacki związane z kredytami"""
+    query = update.callback_query
+    
+    # Przekieruj do istniejącej funkcji
+    try:
+        from handlers.credit_handler import handle_credit_callback
+        handled = await handle_credit_callback(update, context)
+        if handled:
+            return True
+    except Exception as e:
+        print(f"Błąd w obsłudze kredytów: {e}")
+    
+    return False  # Nie obsłużono callbacku
+
+async def handle_payment_callbacks(update, context):
+    """Obsługuje callbacki związane z płatnościami"""
+    query = update.callback_query
+    
+    # Przekieruj do istniejącej funkcji
+    try:
+        from handlers.payment_handler import handle_payment_callback
+        handled = await handle_payment_callback(update, context)
+        if handled:
+            return True
+    except Exception as e:
+        print(f"Błąd w obsłudze płatności: {e}")
+    
+    return False  # Nie obsłużono callbacku
+
+async def handle_history_callbacks(update, context):
+    """Obsługuje callbacki związane z historią"""
+    query = update.callback_query
+    user_id = query.from_user.id
+    language = get_user_language(context, user_id)
+    
+    if query.data == "history_view":
+        # Pobierz aktywną konwersację
+        from database.supabase_client import get_active_conversation, get_conversation_history
+        conversation = get_active_conversation(user_id)
+        
+        if not conversation:
+            await query.answer(get_text("history_no_conversation", language))
+            await update_menu(
+                query,
+                get_text("history_no_conversation", language),
+                InlineKeyboardMarkup([[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]])
+            )
+            return True
+        
+        # Pobierz historię konwersacji
+        history = get_conversation_history(conversation['id'])
+        
+        if not history:
+            await query.answer(get_text("history_empty", language))
+            await update_menu(
+                query,
+                get_text("history_empty", language),
+                InlineKeyboardMarkup([[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]])
+            )
+            return True
+        
+        # Przygotuj tekst z historią
+        message_text = safe_markdown(f"*{get_text('history_title', language)}*\n\n")
+        
+        for i, msg in enumerate(history[-10:]):  # Ostatnie 10 wiadomości
+            sender = get_text("history_user", language) if msg['is_from_user'] else get_text("history_bot", language)
+            
+            # Skróć treść wiadomości, jeśli jest zbyt długa
+            content = msg.get('content', '')
+            if len(content) > 100:
+                content = content[:97] + "..."
+                
+            # Unikaj formatowania Markdown w treści wiadomości
+            content = content.replace("*", "").replace("_", "").replace("`", "").replace("[", "").replace("]", "")
+            
+            message_text += f"{i+1}. *{sender}*: {content}\n\n"
+        
+        # Dodaj przycisk do powrotu
+        keyboard = [[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update_menu(query, message_text, reply_markup, parse_mode="Markdown")
+        return True
+    
+    elif query.data == "history_new":
+        # Twórz nową konwersację
+        from database.supabase_client import create_new_conversation
+        conversation = create_new_conversation(user_id)
+        
+        await update_menu(
+            query,
+            get_text("new_chat_success", language),
+            InlineKeyboardMarkup([[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]])
+        )
+        return True
+    
+    elif query.data == "history_delete":
+        # Pytanie o potwierdzenie
+        keyboard = [
+            [
+                InlineKeyboardButton(get_text("yes", language), callback_data="history_confirm_delete"),
+                InlineKeyboardButton(get_text("no", language), callback_data="menu_section_history")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update_menu(
+            query,
+            get_text("history_delete_confirm", language),
+            reply_markup
+        )
+        return True
+    
+    elif query.data == "history_confirm_delete":
+        # Usuń historię (tworząc nową konwersację)
+        from database.supabase_client import create_new_conversation
+        conversation = create_new_conversation(user_id)
+        
+        await update_menu(
+            query,
+            get_text("history_deleted", language),
+            InlineKeyboardMarkup([[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]])
+        )
+        return True
+    
+    return False  # Nie obsłużono callbacku
 
 # ==================== FUNKCJE OBSŁUGUJĄCE POSZCZEGÓLNE SEKCJE MENU ====================
 
 async def handle_chat_modes_section(update, context, navigation_path=""):
-    """Obsługuje sekcję trybów czatu"""
+    """Obsługuje sekcję trybów czatu z ulepszoną prezentacją"""
     query = update.callback_query
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
@@ -368,10 +550,57 @@ async def handle_chat_modes_section(update, context, navigation_path=""):
     if navigation_path:
         message_text = f"*{navigation_path}*\n\n"
     
+    # Add styled header for chat modes section
+    message_text += create_header("Tryby Konwersacji", "chat")
     message_text += get_text("select_chat_mode", language)
     
-    reply_markup = create_chat_modes_markup(language)
-    result = await update_message(
+    # Add visual explanation of cost indicators
+    message_text += "\n\n" + create_section("Oznaczenia Kosztów", 
+        "🟢 1 kredyt - tryby ekonomiczne\n🟠 2-3 kredytów - tryby standardowe\n🔴 5+ kredytów - tryby premium")
+    
+    # Customized keyboard with cost indicators
+    keyboard = []
+    for mode_id, mode_info in CHAT_MODES.items():
+        # Pobierz przetłumaczoną nazwę trybu
+        mode_name = get_text(f"chat_mode_{mode_id}", language, default=mode_info['name'])
+        
+        # Add cost indicator emoji based on credit cost
+        if mode_info['credit_cost'] == 1:
+            cost_indicator = "🟢"  # Green for economy options
+        elif mode_info['credit_cost'] <= 3:
+            cost_indicator = "🟠"  # Orange for standard options
+        else:
+            cost_indicator = "🔴"  # Red for expensive options
+        
+        # Add premium star for premium modes
+        if mode_info['credit_cost'] >= 3 and "gpt-4" in mode_info.get('model', ''):
+            premium_marker = "⭐ "
+        else:
+            premium_marker = ""
+        
+        # Create button with visual indicators
+        keyboard.append([
+            InlineKeyboardButton(
+                f"{premium_marker}{mode_name} {cost_indicator} {mode_info['credit_cost']} kr.", 
+                callback_data=f"mode_{mode_id}"
+            )
+        ])
+    
+    # Pasek szybkiego dostępu
+    keyboard.append([
+        InlineKeyboardButton("🆕 " + get_text("new_chat", language, default="Nowa rozmowa"), callback_data="quick_new_chat"),
+        InlineKeyboardButton("💬 " + get_text("last_chat", language, default="Ostatnia rozmowa"), callback_data="quick_last_chat"),
+        InlineKeyboardButton("💸 " + get_text("buy_credits_btn", language, default="Kup kredyty"), callback_data="quick_buy_credits")
+    ])
+    
+    # Dodaj przycisk powrotu w jednolitym miejscu
+    keyboard.append([
+        InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_back_main")
+    ])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    result = await update_menu(
         query, 
         message_text,
         reply_markup,
@@ -384,7 +613,7 @@ async def handle_chat_modes_section(update, context, navigation_path=""):
     return result
 
 async def handle_credits_section(update, context, navigation_path=""):
-    """Obsługuje sekcję kredytów"""
+    """Obsługuje sekcję kredytów z ulepszoną wizualizacją"""
     query = update.callback_query
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
@@ -395,11 +624,23 @@ async def handle_credits_section(update, context, navigation_path=""):
         message_text = f"*{navigation_path}*\n\n"
     
     credits = get_user_credits(user_id)
-    message_text += get_text("credits_info", language, bot_name=BOT_NAME, credits=credits)
+    
+    # Use enhanced credit display with status bar and visual indicators
+    message_text += enhance_credits_display(credits, BOT_NAME)
+    
+    # Add a random tip about credits if appropriate
+    if should_show_tip(user_id, context):
+        tip = get_random_tip('credits')
+        message_text += f"\n\n{section_divider('Porada')}\n💡 *Porada:* {tip}"
+    
+    # Check for low credits and add warning if needed
+    low_credits_warning = get_low_credits_notification(credits)
+    if low_credits_warning:
+        message_text += f"\n\n{section_divider('Uwaga')}\n{low_credits_warning}"
     
     reply_markup = create_credits_menu_markup(language)
     
-    result = await update_message(
+    result = await update_menu(
         query,
         message_text,
         reply_markup,
@@ -425,7 +666,7 @@ async def handle_history_section(update, context, navigation_path=""):
     message_text += get_text("history_options", language) + "\n\n" + get_text("export_info", language, default="Aby wyeksportować konwersację, użyj komendy /export")
     reply_markup = create_history_menu_markup(language)
     
-    result = await update_message(
+    result = await update_menu(
         query,
         message_text,
         reply_markup,
@@ -451,7 +692,7 @@ async def handle_settings_section(update, context, navigation_path=""):
     message_text += get_text("settings_options", language)
     reply_markup = create_settings_menu_markup(language)
     
-    result = await update_message(
+    result = await update_menu(
         query,
         message_text,
         reply_markup,
@@ -464,7 +705,7 @@ async def handle_settings_section(update, context, navigation_path=""):
     return result
 
 async def handle_help_section(update, context, navigation_path=""):
-    """Obsługuje sekcję pomocy"""
+    """Obsługuje sekcję pomocy z ulepszoną wizualizacją"""
     query = update.callback_query
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
@@ -474,7 +715,32 @@ async def handle_help_section(update, context, navigation_path=""):
     if navigation_path:
         message_text = f"*{navigation_path}*\n\n"
     
-    message_text += get_text("help_text", language)
+    # Get the base help text
+    help_text = get_text("help_text", language)
+    
+    # Apply enhanced formatting
+    message_text += enhance_help_message(help_text)
+    
+    # Add a command shortcuts section
+    command_shortcuts = (
+        "▪️ /start - Rozpocznij bota\n"
+        "▪️ /menu - Otwórz menu główne\n"
+        "▪️ /credits - Sprawdź kredyty\n"
+        "▪️ /buy - Kup kredyty\n" 
+        "▪️ /mode - Wybierz tryb czatu\n"
+        "▪️ /image - Generuj obraz\n"
+        "▪️ /help - Wyświetl pomoc\n"
+        "▪️ /status - Sprawdź status\n"
+        "▪️ /tutorial - Interaktywny tutorial"
+    )
+    
+    message_text += f"\n\n{section_divider('Skróty Komend')}\n{command_shortcuts}"
+    
+    # Add a random tip if appropriate
+    if should_show_tip(user_id, context):
+        tip = get_random_tip()
+        message_text += f"\n\n{section_divider('Porada Dnia')}\n💡 *Porada:* {tip}"
+    
     keyboard = [
         # Pasek szybkiego dostępu
         [
@@ -482,11 +748,12 @@ async def handle_help_section(update, context, navigation_path=""):
             InlineKeyboardButton("💬 " + get_text("last_chat", language, default="Ostatnia rozmowa"), callback_data="quick_last_chat"),
             InlineKeyboardButton("💸 " + get_text("buy_credits_btn", language, default="Kup kredyty"), callback_data="quick_buy_credits")
         ],
+        [InlineKeyboardButton("📚 " + get_text("tutorial", language, default="Interaktywny tutorial"), callback_data="start_tutorial")],
         [InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_back_main")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    result = await update_message(
+    result = await update_menu(
         query,
         message_text,
         reply_markup,
@@ -628,9 +895,13 @@ async def new_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     language = get_user_language(context, user_id)
     
     # Utwórz nową konwersację
+    from database.supabase_client import create_new_conversation
     conversation = create_new_conversation(user_id)
     
     if conversation:
+        # Oznacz czat jako zainicjowany
+        mark_chat_initialized(context, user_id)
+        
         # Dodaj przyciski menu dla łatwiejszej nawigacji
         keyboard = [
             [InlineKeyboardButton(get_text("menu_chat_mode", language), callback_data="menu_section_chat_modes")],
@@ -655,94 +926,6 @@ async def new_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN
         )
 
-async def handle_callback_error(query, error_message, full_error=None, show_retry=True, language=None):
-    """
-    Ulepszona obsługa błędów podczas przetwarzania callbacków
-    
-    Args:
-        query: Obiekt callback_query
-        error_message: Krótka wiadomość o błędzie dla użytkownika
-        full_error: Pełny tekst błędu do zalogowania (opcjonalnie)
-        show_retry: Czy pokazać przycisk ponowienia próby (opcjonalnie)
-        language: Kod języka (opcjonalnie)
-    """
-    if full_error:
-        print(f"Błąd podczas obsługi callbacku: {full_error}")
-        import traceback
-        traceback.print_exc()
-    
-    # Próba pobrania języka, jeśli nie został przekazany
-    if not language:
-        try:
-            user_id = query.from_user.id
-            # Spróbuj pobrać język z kontekstu
-            if hasattr(query, 'bot') and hasattr(query.bot, 'context'):
-                context = query.bot.context
-                language = get_user_language(context, user_id)
-            else:
-                # Jeśli nie udało się pobrać języka, użyj domyślnego
-                language = "pl"
-        except:
-            language = "pl"
-    
-    # Powiadom użytkownika o błędzie przez notyfikację
-    try:
-        await query.answer(error_message)
-    except Exception:
-        pass
-    
-    # Przygotuj klawiaturę z przyciskami
-    keyboard = []
-    
-    # Dodaj przycisk ponowienia próby, jeśli wymagane
-    if show_retry:
-        keyboard.append([
-            InlineKeyboardButton(
-                get_text("retry", language, default="Spróbuj ponownie"),
-                callback_data=query.data
-            )
-        ])
-    
-    # Dodaj pasek szybkiego dostępu
-    keyboard.append([
-        InlineKeyboardButton("🆕 " + get_text("new_chat", language, default="Nowa rozmowa"), callback_data="quick_new_chat"),
-        InlineKeyboardButton("💬 " + get_text("last_chat", language, default="Ostatnia rozmowa"), callback_data="quick_last_chat"),
-        InlineKeyboardButton("💸 " + get_text("buy_credits_btn", language, default="Kup kredyty"), callback_data="quick_buy_credits")
-    ])
-    
-    # Dodaj przycisk powrotu do menu głównego
-    keyboard.append([
-        InlineKeyboardButton("⬅️ " + get_text("back_to_main_menu", language, default="Powrót do menu głównego"), callback_data="menu_back_main")
-    ])
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    # Spróbuj zaktualizować wiadomość z informacją o błędzie
-    try:
-        error_text = f"⚠️ {error_message}\n\n{get_text('error_retry', language, default='Możesz spróbować ponownie lub wrócić do menu głównego.')}"
-        
-        if hasattr(query.message, 'caption'):
-            await query.edit_message_caption(
-                caption=error_text,
-                reply_markup=reply_markup
-            )
-        else:
-            await query.edit_message_text(
-                text=error_text,
-                reply_markup=reply_markup
-            )
-    except Exception:
-        # Jeśli nie udało się zaktualizować wiadomości, spróbuj wysłać nową
-        try:
-            await query.bot.send_message(
-                chat_id=query.message.chat_id,
-                text=f"⚠️ {error_message}\n\n{get_text('error_retry', language, default='Możesz spróbować ponownie lub wrócić do menu głównego.')}",
-                reply_markup=reply_markup
-            )
-        except Exception:
-            # Jeśli i to się nie udało, nie rób nic
-            pass
-
 async def handle_image_section(update, context, navigation_path=""):
     """Obsługuje sekcję generowania obrazów"""
     query = update.callback_query
@@ -766,7 +949,7 @@ async def handle_image_section(update, context, navigation_path=""):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    result = await update_message(
+    result = await update_menu(
         query,
         message_text,
         reply_markup,
@@ -778,28 +961,188 @@ async def handle_image_section(update, context, navigation_path=""):
     
     return result
 
+
+async def handle_language_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Obsługuje wybór języka przez użytkownika
+    """
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        if not query.data.startswith("start_lang_"):
+            return
+        
+        language = query.data[11:]  # Usuń prefix "start_lang_"
+        user_id = query.from_user.id
+        
+        # Zapisz język w bazie danych
+        try:
+            from database.supabase_client import update_user_language
+            update_user_language(user_id, language)
+        except Exception as e:
+            print(f"Błąd zapisywania języka: {e}")
+        
+        # Zapisz język w kontekście
+        if 'user_data' not in context.chat_data:
+            context.chat_data['user_data'] = {}
+        
+        if user_id not in context.chat_data['user_data']:
+            context.chat_data['user_data'][user_id] = {}
+        
+        context.chat_data['user_data'][user_id]['language'] = language
+        
+        # Pobierz przetłumaczony tekst powitalny
+        welcome_text = get_text("welcome_message", language, bot_name=BOT_NAME)
+        
+        # Utwórz klawiaturę menu z przetłumaczonymi tekstami
+        keyboard = [
+            [
+                InlineKeyboardButton(get_text("menu_chat_mode", language), callback_data="menu_section_chat_modes"),
+                InlineKeyboardButton(get_text("image_generate", language), callback_data="menu_image_generate")
+            ],
+            [
+                InlineKeyboardButton(get_text("menu_credits", language), callback_data="menu_section_credits"),
+                InlineKeyboardButton(get_text("menu_dialog_history", language), callback_data="menu_section_history")
+            ],
+            [
+                InlineKeyboardButton(get_text("menu_settings", language), callback_data="menu_section_settings"),
+                InlineKeyboardButton(get_text("menu_help", language), callback_data="menu_help")
+            ]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Użyj centralnej implementacji update_menu
+        try:
+            # Bezpośrednio aktualizujemy wiadomość, aby uniknąć problemów z update_menu
+            if hasattr(query.message, 'caption'):
+                await query.edit_message_caption(
+                    caption=welcome_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.edit_message_text(
+                    text=welcome_text,
+                    reply_markup=reply_markup
+                )
+                
+            # Zapisz stan menu poprawnie - używamy bezpośrednio menu_state
+            from utils.menu_utils import menu_state
+            menu_state.set_state(user_id, 'main')
+            menu_state.set_message_id(user_id, query.message.message_id)
+            menu_state.save_to_context(context, user_id)
+            
+            print(f"Menu główne wyświetlone poprawnie dla użytkownika {user_id}")
+        except Exception as e:
+            print(f"Błąd przy aktualizacji wiadomości: {e}")
+            # Jeśli nie możemy edytować, to spróbujmy wysłać nową wiadomość
+            try:
+                message = await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=welcome_text,
+                    reply_markup=reply_markup
+                )
+                
+                # Zapisz stan menu
+                from utils.menu_utils import menu_state
+                menu_state.set_state(user_id, 'main')
+                menu_state.set_message_id(user_id, message.message_id)
+                menu_state.save_to_context(context, user_id)
+                
+                print(f"Wysłano nową wiadomość menu dla użytkownika {user_id}")
+            except Exception as e2:
+                print(f"Błąd przy wysyłaniu nowej wiadomości: {e2}")
+                import traceback
+                traceback.print_exc()
+    except Exception as e:
+        print(f"Błąd w funkcji handle_language_selection: {e}")
+        import traceback
+        traceback.print_exc()
+
 async def handle_back_to_main(update, context):
     """Obsługuje powrót do głównego menu"""
     query = update.callback_query
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
     
-    # Pobierz bogaty tekst powitalny
+    # Usuń aktualną wiadomość menu
+    try:
+        await query.message.delete()
+    except Exception as e:
+        print(f"Błąd przy usuwaniu wiadomości: {e}")
+    
+    # Pobierz tekst powitalny i usuń potencjalnie problematyczne znaczniki
     welcome_text = get_text("welcome_message", language, bot_name=BOT_NAME)
-    keyboard = create_main_menu_markup(language)
     
-    # Używamy funkcji update_message zamiast tworzenia nowej wiadomości
-    await update_message(
-        query,
-        welcome_text,
-        keyboard,
-        parse_mode=ParseMode.MARKDOWN
-    )
+    # Link do zdjęcia bannera
+    banner_url = "https://i.imgur.com/YPubLDE.png?v-1123"
     
-    # Zapisz stan menu
-    store_menu_state(context, user_id, 'main')
+    # Utwórz klawiaturę menu
+    keyboard = [
+        [
+            InlineKeyboardButton(get_text("menu_chat_mode", language), callback_data="menu_section_chat_modes"),
+            InlineKeyboardButton(get_text("image_generate", language), callback_data="menu_image_generate")
+        ],
+        [
+            InlineKeyboardButton(get_text("menu_credits", language), callback_data="menu_section_credits"),
+            InlineKeyboardButton(get_text("menu_dialog_history", language), callback_data="menu_section_history")
+        ],
+        [
+            InlineKeyboardButton(get_text("menu_settings", language), callback_data="menu_section_settings"),
+            InlineKeyboardButton(get_text("menu_help", language), callback_data="menu_help")
+        ]
+    ]
     
-    return True
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    try:
+        # Najpierw próba bez formatowania Markdown
+        message = await context.bot.send_photo(
+            chat_id=query.message.chat_id,
+            photo=banner_url,
+            caption=welcome_text,
+            reply_markup=reply_markup
+        )
+        
+        # Zapisz ID wiadomości menu i stan menu
+        menu_state.set_state(user_id, 'main')
+        menu_state.set_message_id(user_id, message.message_id)
+        menu_state.save_to_context(context, user_id)
+        
+        return True
+    except Exception as e:
+        print(f"Błąd przy wysyłaniu głównego menu ze zdjęciem: {e}")
+        
+        # Usuń wszystkie znaki formatowania Markdown
+        clean_text = welcome_text.replace("*", "").replace("_", "").replace("`", "").replace("[", "").replace("]", "")
+        
+        try:
+            message = await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=clean_text,
+                reply_markup=reply_markup
+            )
+            
+            # Zapisz stan menu
+            menu_state.set_state(user_id, 'main')
+            menu_state.set_message_id(user_id, message.message_id)
+            menu_state.save_to_context(context, user_id)
+            
+            return True
+        except Exception as e2:
+            print(f"Błąd przy wysyłaniu fallbacku menu: {e2}")
+            
+            # Ostatnia próba - podstawowa wiadomość
+            try:
+                message = await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text="Menu główne",
+                    reply_markup=reply_markup
+                )
+                return True
+            except:
+                return False
 
 async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obsługuje wybór modelu AI"""
@@ -810,7 +1153,7 @@ async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_T
     print(f"Obsługa wyboru modelu dla użytkownika {user_id}")
     
     reply_markup = create_model_selection_markup(language)
-    result = await update_message(
+    result = await update_menu(
         query, 
         get_text("settings_choose_model", language),
         reply_markup,
@@ -820,22 +1163,103 @@ async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_T
     return result
 
 async def handle_language_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Obsługuje wybór języka"""
-    query = update.callback_query
-    user_id = query.from_user.id
-    language = get_user_language(context, user_id)
-    
-    print(f"Obsługa wyboru języka dla użytkownika {user_id}")
-    
-    reply_markup = create_language_selection_markup(language)
-    result = await update_message(
-        query,
-        get_text("settings_choose_language", language),
-        reply_markup,
-        parse_mode=ParseMode.MARKDOWN
-    )
-    
-    return result
+
+    """
+    Obsługuje wybór języka przez użytkownika
+    """
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        if not query.data.startswith("start_lang_"):
+            return
+        
+        language = query.data[11:]  # Usuń prefix "start_lang_"
+        user_id = query.from_user.id
+        
+        # Zapisz język w bazie danych
+        try:
+            from database.supabase_client import update_user_language
+            update_user_language(user_id, language)
+        except Exception as e:
+            print(f"Błąd zapisywania języka: {e}")
+        
+        # Zapisz język w kontekście
+        if 'user_data' not in context.chat_data:
+            context.chat_data['user_data'] = {}
+        
+        if user_id not in context.chat_data['user_data']:
+            context.chat_data['user_data'][user_id] = {}
+        
+        context.chat_data['user_data'][user_id]['language'] = language
+        
+        # Pobierz przetłumaczony tekst powitalny
+        welcome_text = get_text("welcome_message", language, bot_name=BOT_NAME)
+        
+        # Utwórz klawiaturę menu z przetłumaczonymi tekstami
+        keyboard = [
+            [
+                InlineKeyboardButton(get_text("menu_chat_mode", language), callback_data="menu_section_chat_modes"),
+                InlineKeyboardButton(get_text("image_generate", language), callback_data="menu_image_generate")
+            ],
+            [
+                InlineKeyboardButton(get_text("menu_credits", language), callback_data="menu_section_credits"),
+                InlineKeyboardButton(get_text("menu_dialog_history", language), callback_data="menu_section_history")
+            ],
+            [
+                InlineKeyboardButton(get_text("menu_settings", language), callback_data="menu_section_settings"),
+                InlineKeyboardButton(get_text("menu_help", language), callback_data="menu_help")
+            ]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Użyj centralnej implementacji update_menu
+        try:
+            # Bezpośrednio aktualizujemy wiadomość, aby uniknąć problemów z update_menu
+            if hasattr(query.message, 'caption'):
+                await query.edit_message_caption(
+                    caption=welcome_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.edit_message_text(
+                    text=welcome_text,
+                    reply_markup=reply_markup
+                )
+                
+            # Zapisz stan menu poprawnie - używamy bezpośrednio menu_state
+            from utils.menu_utils import menu_state
+            menu_state.set_state(user_id, 'main')
+            menu_state.set_message_id(user_id, query.message.message_id)
+            menu_state.save_to_context(context, user_id)
+            
+            print(f"Menu główne wyświetlone poprawnie dla użytkownika {user_id}")
+        except Exception as e:
+            print(f"Błąd przy aktualizacji wiadomości: {e}")
+            # Jeśli nie możemy edytować, to spróbujmy wysłać nową wiadomość
+            try:
+                message = await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=welcome_text,
+                    reply_markup=reply_markup
+                )
+                
+                # Zapisz stan menu
+                from utils.menu_utils import menu_state
+                menu_state.set_state(user_id, 'main')
+                menu_state.set_message_id(user_id, message.message_id)
+                menu_state.save_to_context(context, user_id)
+                
+                print(f"Wysłano nową wiadomość menu dla użytkownika {user_id}")
+            except Exception as e2:
+                print(f"Błąd przy wysyłaniu nowej wiadomości: {e2}")
+                import traceback
+                traceback.print_exc()
+    except Exception as e:
+        print(f"Błąd w funkcji handle_language_selection: {e}")
+        import traceback
+        traceback.print_exc()
 
 async def handle_name_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obsługuje ustawienia nazwy użytkownika"""
@@ -849,7 +1273,7 @@ async def handle_name_settings(update: Update, context: ContextTypes.DEFAULT_TYP
     keyboard = [[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_settings")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    result = await update_message(
+    result = await update_menu(
         query,
         message_text,
         reply_markup,
@@ -877,7 +1301,7 @@ async def handle_history_view(update, context):
         keyboard = [[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await update_message(
+        await update_menu(
             query,
             message_text,
             reply_markup,
@@ -897,7 +1321,7 @@ async def handle_history_view(update, context):
         keyboard = [[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await update_message(
+        await update_menu(
             query,
             message_text,
             reply_markup,
@@ -919,7 +1343,7 @@ async def handle_history_view(update, context):
         # Unikaj formatowania Markdown w treści wiadomości, które mogłoby powodować problemy
         content = content.replace("*", "").replace("_", "").replace("`", "").replace("[", "").replace("]", "")
         
-        message_text += f"{i+1}. **{sender}**: {content}\n\n"
+        message_text += f"{i+1}. *{sender}*: {content}\n\n"
     
     # Dodaj przycisk do powrotu
     keyboard = [[InlineKeyboardButton(get_text("back", language), callback_data="menu_section_history")]]
@@ -927,7 +1351,7 @@ async def handle_history_view(update, context):
     
     # Spróbuj wysłać z formatowaniem, a jeśli się nie powiedzie, wyślij bez
     try:
-        await update_message(
+        await update_menu(
             query,
             message_text,
             reply_markup,
@@ -937,7 +1361,7 @@ async def handle_history_view(update, context):
         print(f"Błąd formatowania historii: {e}")
         # Spróbuj bez formatowania
         plain_message = message_text.replace("*", "").replace("**", "")
-        await update_message(
+        await update_menu(
             query,
             plain_message,
             reply_markup
@@ -1171,56 +1595,6 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Zapisz ID wiadomości menu i stan menu
     store_menu_state(context, user_id, 'main', message.message_id)
 
-async def update_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, menu_state, markup=None, navigation_path=""):
-    """
-    Aktualizuje istniejące menu
-    
-    Args:
-        update: Obiekt Update
-        context: Kontekst bota
-        menu_state: Nowy stan menu
-        markup: Klawiatura menu (opcjonalnie)
-        navigation_path: Ścieżka nawigacji (opcjonalnie)
-    """
-    query = update.callback_query
-    user_id = query.from_user.id
-    language = get_user_language(context, user_id)
-    
-    # Obsługa różnych stanów menu
-    if menu_state == 'main':
-        # Używamy welcome_message
-        welcome_text = get_text("welcome_message", language, bot_name=BOT_NAME)
-        menu_text = welcome_text
-        
-        if not markup:
-            markup = create_main_menu_markup(language)
-            
-        await update_message(query, menu_text, markup, parse_mode=ParseMode.MARKDOWN)
-    elif menu_state == 'chat_modes':
-        nav_path = get_text("main_menu", language, default="Menu główne") + " > " + get_text("menu_chat_mode", language)
-        await handle_chat_modes_section(update, context, nav_path)
-    elif menu_state == 'credits':
-        nav_path = get_text("main_menu", language, default="Menu główne") + " > " + get_text("menu_credits", language)
-        await handle_credits_section(update, context, nav_path)
-    elif menu_state == 'history':
-        nav_path = get_text("main_menu", language, default="Menu główne") + " > " + get_text("menu_dialog_history", language)
-        await handle_history_section(update, context, nav_path)
-    elif menu_state == 'settings':
-        nav_path = get_text("main_menu", language, default="Menu główne") + " > " + get_text("menu_settings", language)
-        await handle_settings_section(update, context, nav_path)
-    else:
-        # Domyślnie też używamy welcome_message
-        welcome_text = get_text("welcome_message", language, bot_name=BOT_NAME)
-        menu_text = welcome_text
-        
-        if not markup:
-            markup = create_main_menu_markup(language)
-            
-        await update_message(query, menu_text, markup, parse_mode=ParseMode.MARKDOWN)
-    
-    # Zapisz nowy stan menu
-    store_menu_state(context, user_id, menu_state)
-
 async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Obsługuje wszystkie callbacki związane z menu
@@ -1253,6 +1627,29 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         return await handle_image_section(update, context, nav_path)
     elif query.data == "menu_back_main":
         return await handle_back_to_main(update, context)
+    # Opcje menu kredytów
+    elif query.data == "menu_credits_check":
+        try:
+            from handlers.credit_handler import handle_credit_callback
+            handled = await handle_credit_callback(update, context)
+            return handled
+        except Exception as e:
+            print(f"Błąd przy obsłudze kredytów: {e}")
+            keyboard = [[InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_credits")]]
+            await update_menu(query, "Wystąpił błąd przy sprawdzaniu kredytów. Spróbuj ponownie później.", 
+                             InlineKeyboardMarkup(keyboard))
+            return True
+    elif query.data == "menu_credits_buy":
+        try:
+            from handlers.credit_handler import handle_credit_callback
+            handled = await handle_credit_callback(update, context)
+            return handled
+        except Exception as e:
+            print(f"Błąd przy obsłudze zakupu kredytów: {e}")
+            keyboard = [[InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_credits")]]
+            await update_menu(query, "Wystąpił błąd przy zakupie kredytów. Spróbuj ponownie później.", 
+                             InlineKeyboardMarkup(keyboard))
+            return True
     
     # Przyciski szybkiego dostępu
     elif query.data == "quick_new_chat":
@@ -1286,58 +1683,128 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         return True
     elif query.data == "quick_buy_credits":
         # Przekieruj do zakupu kredytów
-        nav_path = get_text("main_menu", language, default="Menu główne") + " > " + get_text("menu_credits", language) + " > " + get_text("buy_credits_btn", language)
+        try:
+            from handlers.credit_handler import handle_credit_callback
+            # Symulujemy callback do funkcji zakupu kredytów
+            query.data = "credits_buy"
+            handled = await handle_credit_callback(update, context)
+            return handled
+        except Exception as e:
+            print(f"Błąd przy przekierowaniu do zakupu kredytów: {e}")
+            keyboard = [[InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_back_main")]]
+            await update_menu(query, "Wystąpił błąd przy zakupie kredytów. Spróbuj ponownie później.", 
+                             InlineKeyboardMarkup(keyboard))
+            return True
+
+    elif query.data == "start_tutorial":
+        # Import and call the interactive onboarding function
+        from handlers.onboarding_handler import interactive_onboarding
         
-        # Pobierz pakiety kredytów
-        from database.credits_client import get_credit_packages
-        packages = get_credit_packages()
+        # Create a mock update
+        from telegram import Update
+        mock_update = Update(update_id=0, message=query.message)
+        mock_update.message.from_user = query.from_user
+        mock_update.effective_user = query.from_user
         
-        packages_text = ""
-        for pkg in packages:
-            packages_text += f"*{pkg['id']}.* {pkg['name']} - *{pkg['credits']}* {get_text('credits', language)} - *{pkg['price']} PLN*\n"
+        # Delete the current message
+        await query.message.delete()
         
-        # Utwórz klawiaturę z pakietami
+        # Start the tutorial
+        await interactive_onboarding(mock_update, context)
+        return True
+    
+    # Bezpośrednia obsługa przycisku wyboru języka
+    elif query.data == "settings_language":
+        user_id = query.from_user.id
+        language = get_user_language(context, user_id)
+        
+        # Utwórz klawiaturę z dostępnymi językami
         keyboard = []
-        for pkg in packages:
+        for lang_code, lang_name in AVAILABLE_LANGUAGES.items():
             keyboard.append([
                 InlineKeyboardButton(
-                    f"{pkg['name']} - {pkg['credits']} {get_text('credits', language)} ({pkg['price']} PLN)", 
-                    callback_data=f"buy_package_{pkg['id']}"
+                    lang_name, 
+                    callback_data=f"start_lang_{lang_code}"
                 )
             ])
         
-        # Dodaj przycisk dla gwiazdek Telegram
-        keyboard.append([
-            InlineKeyboardButton("⭐ " + get_text("buy_with_stars", language, default="Kup za gwiazdki Telegram"), 
-                                callback_data="show_stars_options")
-        ])
-        
-        # Pasek szybkiego dostępu
-        keyboard.append([
-            InlineKeyboardButton("🆕 " + get_text("new_chat", language, default="Nowa rozmowa"), callback_data="quick_new_chat"),
-            InlineKeyboardButton("💬 " + get_text("last_chat", language, default="Ostatnia rozmowa"), callback_data="quick_last_chat")
-        ])
-        
         # Dodaj przycisk powrotu
         keyboard.append([
-            InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_credits")
+            InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_settings")
         ])
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # Tekst informacyjny o zakupie kredytów z paskiem nawigacyjnym
-        message = f"*{nav_path}*\n\n" + get_text("buy_credits", language, packages=packages_text)
+        # Tekst wiadomości
+        message_text = get_text("settings_choose_language", language, default="Wybierz język:")
         
-        await update_message(
-            query,
-            message,
-            reply_markup,
-            parse_mode=ParseMode.MARKDOWN
-        )
+        # Sprawdź, czy wiadomość ma zdjęcie (jest to najczęstszy przypadek tego błędu)
+        is_photo = False
+        if hasattr(query.message, 'photo') and query.message.photo:
+            is_photo = True
+        
+        # Sprawdź, czy wiadomość ma podpis
+        has_caption = hasattr(query.message, 'caption') and query.message.caption is not None
+        
+        try:
+            # Spróbuj odpowiednią metodę w zależności od typu wiadomości
+            if is_photo or has_caption:
+                # Dla zdjęć i wiadomości z podpisem używamy edit_message_caption
+                await query.edit_message_caption(
+                    caption=message_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                # Dla zwykłych wiadomości tekstowych używamy edit_message_text
+                await query.edit_message_text(
+                    text=message_text,
+                    reply_markup=reply_markup
+                )
+        except Exception as e:
+            print(f"Błąd przy edycji wiadomości: {e}")
+            # W przypadku jakiegokolwiek błędu, wyślij nową wiadomość
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=message_text,
+                reply_markup=reply_markup
+            )
+        
         return True
 
+    # Obsługa kredytów i płatności
+    try:
+        # Sprawdź, czy to callback związany z kredytami
+        if query.data.startswith("credits_") or query.data.startswith("buy_package_") or query.data == "credit_advanced_analytics":
+            from handlers.credit_handler import handle_credit_callback
+            handled = await handle_credit_callback(update, context)
+            if handled:
+                return True
+    except Exception as e:
+        print(f"Błąd w obsłudze callbacków kredytów: {e}")
+        
+    try:
+        # Sprawdź, czy to callback związany z płatnościami
+        if query.data.startswith("payment_") or query.data.startswith("buy_package_"):
+            from handlers.payment_handler import handle_payment_callback
+            handled = await handle_payment_callback(update, context)
+            if handled:
+                return True
+    except Exception as e:
+        print(f"Błąd w obsłudze callbacków płatności: {e}")
+
     # Jeśli dotarliśmy tutaj, oznacza to, że callback nie został obsłużony
-    return False
+    print(f"Nieobsłużony callback: {query.data}")
+    try:
+        keyboard = [[InlineKeyboardButton("⬅️ Menu główne", callback_data="menu_back_main")]]
+        await update_menu(
+            query,
+            f"Nieznany przycisk. Spróbuj ponownie później.",
+            InlineKeyboardMarkup(keyboard)
+        )
+        return True
+    except Exception as e:
+        print(f"Błąd przy wyświetlaniu komunikatu o nieobsłużonym callbacku: {e}")
+        return False
 
 async def set_user_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """

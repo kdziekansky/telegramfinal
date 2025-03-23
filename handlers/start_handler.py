@@ -5,6 +5,8 @@ from config import BOT_NAME, AVAILABLE_LANGUAGES
 from utils.translations import get_text
 from database.supabase_client import get_or_create_user, get_message_status
 from database.credits_client import get_user_credits
+from utils.user_utils import get_user_language
+from utils.menu_utils import update_menu
 
 # Zabezpieczony import z awaryjnym fallbackiem
 try:
@@ -25,83 +27,48 @@ except ImportError:
             return True, referrer_id
         return False, None
 
-def get_user_language(context, user_id):
-    """
-    Pobiera język użytkownika z kontekstu lub bazy danych
-    
-    Args:
-        context: Kontekst bota
-        user_id: ID użytkownika
-        
-    Returns:
-        str: Kod języka (pl, en, ru)
-    """
-    # Sprawdź, czy język jest zapisany w kontekście
-    if 'user_data' in context.chat_data and user_id in context.chat_data['user_data'] and 'language' in context.chat_data['user_data'][user_id]:
-        return context.chat_data['user_data'][user_id]['language']
-    
-    # Jeśli nie, pobierz z bazy danych Supabase
-    try:
-        from database.supabase_client import supabase
-        
-        # Pobierz dane użytkownika
-        response = supabase.table('users').select('language, language_code').eq('id', user_id).execute()
-        
-        if response.data:
-            user_data = response.data[0]
-            
-            # Najpierw sprawdź pole language
-            if user_data.get('language'):
-                language = user_data.get('language')
-                
-                # Zapisz w kontekście na przyszłość
-                if 'user_data' not in context.chat_data:
-                    context.chat_data['user_data'] = {}
-                
-                if user_id not in context.chat_data['user_data']:
-                    context.chat_data['user_data'][user_id] = {}
-                
-                context.chat_data['user_data'][user_id]['language'] = language
-                return language
-                
-            # Jeśli language nie znaleziono, sprawdź language_code
-            if user_data.get('language_code'):
-                language_code = user_data.get('language_code')
-                
-                # Zapisz w kontekście na przyszłość
-                if 'user_data' not in context.chat_data:
-                    context.chat_data['user_data'] = {}
-                
-                if user_id not in context.chat_data['user_data']:
-                    context.chat_data['user_data'][user_id] = {}
-                
-                context.chat_data['user_data'][user_id]['language'] = language_code
-                return language_code
-    except Exception as e:
-        print(f"Błąd pobierania języka z bazy: {e}")
-    
-    # Domyślny język, jeśli wszystkie metody zawiodły
-    return "pl"
-
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Obsługa komendy /start
-    Wyświetla wybór języka lub banner graficzny i wiadomość powitalną z menu
+    Wyświetla od razu menu powitalne dla istniejących użytkowników,
+    a wybór języka tylko dla nowych
     """
     try:
         user = update.effective_user
+        user_id = user.id
         
         # Sprawdź, czy użytkownik istnieje w bazie
         user_data = get_or_create_user(
-            user_id=user.id,
+            user_id=user_id,
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
             language_code=user.language_code
         )
         
-        # Zawsze pokazuj wybór języka przy starcie
-        await show_language_selection(update, context)
+        # Sprawdź, czy język jest już ustawiony
+        language = get_user_language(context, user_id)
+        
+        # Sprawdź czy to domyślny język (pl) czy wybrany przez użytkownika
+        has_language_in_context = ('user_data' in context.chat_data and 
+                                  user_id in context.chat_data['user_data'] and 
+                                  'language' in context.chat_data['user_data'][user_id])
+        
+        # Sprawdź też w bazie danych, czy użytkownik ma już ustawiony język
+        has_language_in_db = False
+        try:
+            response = supabase.table('users').select('language').eq('id', user_id).execute()
+            if response.data and response.data[0].get('language'):
+                has_language_in_db = True
+        except Exception:
+            pass  # Ignoruj błędy przy sprawdzaniu bazy
+
+        # Jeśli użytkownik ma już ustawiony język, pokaż menu od razu
+        if has_language_in_context or has_language_in_db:
+            await show_welcome_message(update, context, user_id=user_id, language=language)
+        else:
+            # Jeśli to nowy użytkownik - pokaż wybór języka
+            await show_language_selection(update, context)
         
     except Exception as e:
         print(f"Błąd w funkcji start_command: {e}")
@@ -167,7 +134,7 @@ async def handle_language_selection(update: Update, context: ContextTypes.DEFAUL
         language = query.data[11:]  # Usuń prefix "start_lang_"
         user_id = query.from_user.id
         
-        # Zapisz język w bazie danych - używamy nowej funkcji
+        # Zapisz język w bazie danych
         try:
             from database.supabase_client import update_user_language
             update_user_language(user_id, language)
@@ -182,11 +149,6 @@ async def handle_language_selection(update: Update, context: ContextTypes.DEFAUL
             context.chat_data['user_data'][user_id] = {}
         
         context.chat_data['user_data'][user_id]['language'] = language
-        
-        # Teraz wszystkie pobierane teksty będą używać nowego języka
-        
-        # Link do zdjęcia bannera
-        banner_url = "https://i.imgur.com/PN9p3ng.png?v-112"
         
         # Pobierz przetłumaczony tekst powitalny
         welcome_text = get_text("welcome_message", language, bot_name=BOT_NAME)
@@ -209,34 +171,53 @@ async def handle_language_selection(update: Update, context: ContextTypes.DEFAUL
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # Aktualizuj wiadomość
+        # Użyj centralnej implementacji update_menu
+        from utils.menu_utils import update_menu
         try:
-            await query.edit_message_caption(
-                caption=welcome_text,
-                reply_markup=reply_markup
-            )
+            # Bezpośrednio aktualizujemy wiadomość, aby uniknąć problemów z update_menu
+            if hasattr(query.message, 'caption'):
+                await query.edit_message_caption(
+                    caption=welcome_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.edit_message_text(
+                    text=welcome_text,
+                    reply_markup=reply_markup
+                )
+                
+            # Zapisz stan menu poprawnie - używamy bezpośrednio menu_state
+            from utils.menu_utils import menu_state
+            menu_state.set_state(user_id, 'main')
+            menu_state.set_message_id(user_id, query.message.message_id)
+            menu_state.save_to_context(context, user_id)
             
-            # Zapisz ID wiadomości menu i stan menu
-            from handlers.menu_handler import store_menu_state
-            store_menu_state(context, user_id, 'main', query.message.message_id)
+            print(f"Menu główne wyświetlone poprawnie dla użytkownika {user_id}")
         except Exception as e:
-            print(f"Błąd przy aktualizacji podpisu wiadomości: {e}")
+            print(f"Błąd przy aktualizacji wiadomości: {e}")
+            # Jeśli nie możemy edytować, to spróbujmy wysłać nową wiadomość
             try:
-                # Jeśli nie możemy edytować, to spróbujmy wysłać nową wiadomość
                 message = await context.bot.send_message(
                     chat_id=query.message.chat_id,
                     text=welcome_text,
-                    reply_markup=reply_markup,
-                    parse_mode=ParseMode.MARKDOWN
+                    reply_markup=reply_markup
                 )
                 
-                # Zapisz ID wiadomości menu i stan menu
-                from handlers.menu_handler import store_menu_state
-                store_menu_state(context, user_id, 'main', message.message_id)
+                # Zapisz stan menu
+                from utils.menu_utils import menu_state
+                menu_state.set_state(user_id, 'main')
+                menu_state.set_message_id(user_id, message.message_id)
+                menu_state.save_to_context(context, user_id)
+                
+                print(f"Wysłano nową wiadomość menu dla użytkownika {user_id}")
             except Exception as e2:
                 print(f"Błąd przy wysyłaniu nowej wiadomości: {e2}")
+                import traceback
+                traceback.print_exc()
     except Exception as e:
         print(f"Błąd w funkcji handle_language_selection: {e}")
+        import traceback
+        traceback.print_exc()
 
 async def show_welcome_message(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id=None, language=None):
     """
